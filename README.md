@@ -1,1 +1,1 @@
-# Financial_QA_ChatBot
+# FinRAG
