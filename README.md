@@ -218,6 +218,154 @@ pandas
 numpy
 ```
 
+## Current MVP Quickstart
+
+The repository now includes a working baseline RAG pipeline:
+
+1. Download latest SEC 10-K filings for the starter company set.
+
+```bash
+PYTHONPATH=src python -m finrag.download_sec_filings --tickers AAPL MSFT TSLA NVDA AMZN
+```
+
+2. Split the filings into retrievable chunks.
+
+```bash
+PYTHONPATH=src python -m finrag.chunk_documents
+```
+
+3. Build a FAISS vector index.
+
+```bash
+PYTHONPATH=src python -m finrag.build_index
+```
+
+4. Ask a question with the local debug extractor.
+
+```bash
+PYTHONPATH=src python -m finrag.answer "What risks did Apple report related to supply chains?"
+```
+
+For the project model path, run Qwen 2.5 7B on a Colab GPU server and call it from the local app. Do not load Qwen 7B directly from local Streamlit on a CPU-only Mac.
+
+5. Run the starter evaluation set.
+
+```bash
+PYTHONPATH=src python -m finrag.evaluate
+```
+
+6. Launch the interactive demo locally on CPU.
+
+```bash
+PYTHONPATH=src streamlit run demo/app.py
+```
+
+Paste the Colab Qwen endpoint URL into the app. The local app performs retrieval and citation verification; the Colab GPU endpoint performs Qwen generation. The local extractor is only a debug path for checking retrieval and citations without the Colab endpoint.
+
+### Downloaded Starter Data
+
+The current local data pull uses SEC 10-K filings for:
+
+- Apple: filed 2025-10-31
+- Microsoft: filed 2025-07-30
+- Tesla: filed 2026-01-29
+- NVIDIA: filed 2026-02-25
+- Amazon: filed 2026-02-06
+
+Generated data artifacts live under `data/raw_documents/`, `data/processed_chunks/`, `data/index/`, and `data/fine_tuning/`. These are ignored by git because they are reproducible.
+
+### Implementation Modules
+
+- `src/finrag/download_sec_filings.py`: downloads SEC filings and extracts text
+- `src/finrag/chunk_documents.py`: creates chunk-level JSONL
+- `src/finrag/build_index.py`: embeds chunks and writes the FAISS index
+- `src/finrag/retrieve.py`: retrieves relevant chunks for a query
+- `src/finrag/answer.py`: generates cited answers using retrieval evidence
+- `src/finrag/hallucination_detection.py`: checks citation validity and support
+- `src/finrag/query.py`: detects company intent and risk questions so retrieval stays on the requested filing
+- `src/finrag/evaluate.py`: runs the starter evaluation CSV
+- `src/finrag/fine_tuning.py`: prepares a small FinQA JSONL file for later fine-tuning experiments
+- `src/finrag/train_qlora.py`: QLoRA fine-tunes a 7B Hugging Face model on a CUDA GPU
+- `src/finrag/hf_adapter_answer.py`: answers RAG questions with a saved Hugging Face LoRA adapter
+- `src/finrag/qwen_server.py`: serves Qwen 2.5 7B from Colab GPU over HTTP
+- `src/finrag/remote_qwen.py`: local CPU client that sends retrieved evidence to the Colab Qwen server
+- `demo/app.py`: Streamlit demo
+
+## 7B QLoRA Fine-Tuning On Google Colab
+
+The recommended training route is QLoRA, not full fine-tuning. QLoRA loads the 7B model in 4-bit precision and trains only LoRA adapter weights, which is appropriate for Colab Pro GPUs.
+
+Default base model:
+
+```text
+Qwen/Qwen2.5-7B-Instruct
+```
+
+This is a public 7B instruct model on Hugging Face. No Hugging Face Inference API is required. A Hugging Face token is only needed if your environment needs authenticated downloads, if you choose a gated model, or if you want to push the adapter back to the Hub.
+
+### Colab Setup
+
+Use a CUDA-backed Colab runtime, then run:
+
+```bash
+pip install -r requirements-colab.txt
+```
+
+Prepare more FinQA examples:
+
+```bash
+PYTHONPATH=src python -m finrag.fine_tuning --limit 2000
+```
+
+Train the LoRA adapter:
+
+```bash
+PYTHONPATH=src python -m finrag.train_qlora \
+  --model-name Qwen/Qwen2.5-7B-Instruct \
+  --train-file data/fine_tuning/finqa_train.jsonl \
+  --output-dir /content/drive/MyDrive/finrag-adapters/qwen2_5_7b_finqa_lora \
+  --epochs 1 \
+  --max-length 1536 \
+  --batch-size 1 \
+  --gradient-accumulation-steps 16 \
+  --learning-rate 2e-4 \
+  --lora-r 16 \
+  --lora-alpha 32
+```
+
+Start a Qwen generation server on the Colab GPU. It will use the saved LoRA adapter if that adapter directory exists; otherwise omit `--adapter-path` to serve the base model.
+
+```bash
+PYTHONPATH=src python -m finrag.qwen_server \
+  --model-name Qwen/Qwen2.5-7B-Instruct \
+  --adapter-path /content/drive/MyDrive/finrag-adapters/qwen2_5_7b_finqa_lora \
+  --port 8000
+```
+
+Expose the Colab server with Cloudflare Tunnel:
+
+```bash
+wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+chmod +x cloudflared
+./cloudflared tunnel --url http://127.0.0.1:8000
+```
+
+Copy the printed `https://...trycloudflare.com` URL.
+
+Then run Streamlit locally on your Mac:
+
+```bash
+PYTHONPATH=src streamlit run demo/app.py
+```
+
+Choose `Colab GPU Qwen endpoint` in the app and paste the Cloudflare URL.
+
+There is also a Colab notebook wrapper at `notebooks/finetune_qwen7b_colab.ipynb` with cells for training, starting the Qwen server, and creating the tunnel.
+
+### GPU Notes
+
+The training script and Qwen server intentionally exit if CUDA is unavailable. If you run them in a local macOS terminal, they will fail with a GPU error. Run those commands from an actual Colab GPU runtime or a VS Code terminal attached to that runtime. Run only Streamlit locally on CPU.
+
 ---
 
 # Example Usage

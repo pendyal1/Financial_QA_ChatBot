@@ -1,0 +1,6 @@
+question,expected_ticker,expected_topic
+What risks did Apple report related to supply chains?,AAPL,supply chain
+What does Microsoft say about cybersecurity risks?,MSFT,cybersecurity
+What risks does Tesla describe around manufacturing or production?,TSLA,manufacturing
+What does NVIDIA report about demand or supply risks?,NVDA,demand supply
+What risks does Amazon mention related to competition?,AMZN,competition
