@@ -95,7 +95,7 @@ def tokenize_dataset(dataset: Dataset, tokenizer: Any, max_length: int) -> Datas
             text,
             truncation=True,
             max_length=max_length,
-            padding=False,
+            padding="max_length",
         )
         encoded["labels"] = encoded["input_ids"].copy()
         return encoded
@@ -163,6 +163,9 @@ def train(args: argparse.Namespace) -> None:
     print(f"Using compute dtype: {compute_dtype}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, trust_remote_code=args.trust_remote_code)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"

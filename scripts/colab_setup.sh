@@ -18,7 +18,6 @@ pip uninstall -y torchvision torchaudio torchtext >/dev/null 2>&1 || true
 # dependencies this project needs.
 pip install -q --upgrade \
   "accelerate==1.1.1" \
-  "bitsandbytes==0.44.1" \
   "datasets==2.21.0" \
   "faiss-cpu>=1.8.0" \
   "fastapi>=0.115.0" \
