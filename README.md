@@ -370,13 +370,31 @@ chmod +x cloudflared
 
 Copy the printed `https://...trycloudflare.com` URL.
 
+If Cloudflare Quick Tunnel returns a 500 error, use ngrok instead:
+
+```bash
+pip install pyngrok
+```
+
+Then in a Colab Python cell:
+
+```python
+from pyngrok import ngrok
+
+ngrok.set_auth_token("PASTE_YOUR_NGROK_AUTH_TOKEN")
+public_url = ngrok.connect(8000, "http").public_url
+print(public_url)
+```
+
+Copy the printed `https://...ngrok-free.app` URL.
+
 Then run Streamlit locally on your Mac:
 
 ```bash
 PYTHONPATH=src streamlit run demo/app.py
 ```
 
-Choose `Colab GPU Qwen endpoint` in the app and paste the Cloudflare URL.
+Choose `Colab GPU Qwen endpoint` in the app and paste the Cloudflare or ngrok URL.
 
 There is also a Colab notebook wrapper at `notebooks/finetune_qwen7b_colab.ipynb` with cells for training, starting the Qwen server, and creating the tunnel.
 
