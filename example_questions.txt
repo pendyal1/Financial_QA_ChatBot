@@ -1,0 +1,95 @@
+FinRAG Example Questions
+========================
+
+These questions are designed for the current SEC filing corpus:
+AAPL, MSFT, TSLA, NVDA, and AMZN.
+
+
+Risk Questions
+--------------
+
+What risks did Apple report related to supply chains?
+
+What does Microsoft report about AI-related risks?
+
+What cybersecurity risks does Microsoft describe?
+
+What risks does Tesla describe around manufacturing or production?
+
+What does NVIDIA report about demand or supply risks?
+
+What risks does Amazon mention related to competition?
+
+What litigation or regulatory risks does Apple describe?
+
+What does Amazon say about international business risks?
+
+
+Factual Lookup Questions
+------------------------
+
+What business segments does Microsoft report?
+
+What products and services does Apple describe in its filing?
+
+What does NVIDIA say its main platforms or markets are?
+
+What does Tesla report about its energy generation and storage business?
+
+What does Amazon say about AWS?
+
+
+Financial / Numerical Questions
+-------------------------------
+
+What revenue did Microsoft report?
+
+What net income did Apple report?
+
+What were Amazon's net sales?
+
+What does Tesla report for automotive revenue?
+
+What does NVIDIA report for revenue by segment?
+
+How did Apple's net sales change compared with the prior year?
+
+
+Comparative / Analyst-Style Questions
+-------------------------------------
+
+Which Microsoft business area appears most exposed to competition risk?
+
+What are the main differences between Apple's supply chain risks and Tesla's manufacturing risks?
+
+Compare Amazon and Microsoft on cybersecurity risks.
+
+Compare NVIDIA and Tesla on supply-related risks.
+
+Which company reports more exposure to regulatory risk, Apple or Amazon?
+
+
+Best Demo Questions
+-------------------
+
+What does Microsoft report about AI-related risks?
+
+What risks did Apple report related to supply chains?
+
+What risks does Amazon mention related to competition?
+
+What does NVIDIA report about demand or supply risks?
+
+What does Tesla describe as risks to scaling production?
+
+
+Questions To Avoid
+------------------
+
+What is Apple's stock price today?
+
+Will Amazon revenue grow next quarter?
+
+Should I buy Microsoft stock?
+
+These are real-time, forecasting, or investment advice questions. FinRAG is designed for filing-grounded question answering, not market data lookup or stock recommendations.
