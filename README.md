@@ -354,11 +354,10 @@ PYTHONPATH=src python -m finrag.train_qlora \
 Start a Qwen generation server on the Colab GPU. It will use the saved LoRA adapter if that adapter directory exists; otherwise omit `--adapter-path` to serve the base model.
 
 ```bash
-PYTHONPATH=src python -m finrag.qwen_server \
-  --model-name Qwen/Qwen2.5-7B-Instruct \
-  --adapter-path /content/drive/MyDrive/finrag-adapters/qwen2_5_7b_finqa_lora \
-  --port 8000
+bash scripts/colab_start_qwen_server.sh
 ```
+
+Do not start the public tunnel until this command prints a healthy `/health` response.
 
 Expose the Colab server with Cloudflare Tunnel:
 
@@ -376,14 +375,12 @@ If Cloudflare Quick Tunnel returns a 500 error, use ngrok instead:
 pip install pyngrok
 ```
 
-Then in a Colab Python cell:
+Then in a Colab Python cell, keeping the cell running:
 
 ```python
-from pyngrok import ngrok
-
-ngrok.set_auth_token("PASTE_YOUR_NGROK_AUTH_TOKEN")
-public_url = ngrok.connect(8000, "http").public_url
-print(public_url)
+import os
+os.environ["NGROK_AUTHTOKEN"] = "PASTE_YOUR_NGROK_AUTH_TOKEN"
+%run scripts/colab_start_ngrok.py
 ```
 
 Copy the printed `https://...ngrok-free.app` URL.
