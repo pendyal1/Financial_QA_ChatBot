@@ -311,6 +311,24 @@ Use a CUDA-backed Colab runtime, then run:
 pip install -r requirements-colab.txt
 ```
 
+Do not use `--force-reinstall` on Colab. It can replace Colab's CUDA/PyTorch packages and produce CUDA toolkit conflicts. If you already ran a force reinstall, restart the Colab runtime before continuing.
+
+Verify the runtime:
+
+```bash
+python - <<'PY'
+import torch, transformers, peft, accelerate, bitsandbytes
+print("torch", torch.__version__)
+print("cuda", torch.cuda.is_available(), torch.cuda.get_device_name(0))
+print("transformers", transformers.__version__)
+print("peft", peft.__version__)
+print("accelerate", accelerate.__version__)
+print("bitsandbytes", bitsandbytes.__version__)
+from transformers import PreTrainedModel
+print("PreTrainedModel import OK")
+PY
+```
+
 Prepare more FinQA examples:
 
 ```bash
