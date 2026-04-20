@@ -16,6 +16,29 @@ DEFAULT_TRAIN_FILE = DATA_DIR / "fine_tuning" / "finqa_train.jsonl"
 DEFAULT_OUTPUT_DIR = DATA_DIR.parent / "outputs" / "qwen2_5_7b_finqa_lora"
 
 
+def print_runtime_versions() -> None:
+    import importlib.metadata as metadata
+
+    packages = [
+        "torch",
+        "transformers",
+        "peft",
+        "accelerate",
+        "bitsandbytes",
+        "datasets",
+        "huggingface-hub",
+    ]
+    versions = []
+    for package in packages:
+        try:
+            versions.append(f"{package}=={metadata.version(package)}")
+        except metadata.PackageNotFoundError:
+            versions.append(f"{package}=NOT INSTALLED")
+    print("Runtime package versions:")
+    for version in versions:
+        print(f"  {version}")
+
+
 def require_cuda() -> None:
     import torch
 
@@ -112,6 +135,7 @@ def write_run_config(args: argparse.Namespace) -> None:
 
 def train(args: argparse.Namespace) -> None:
     require_cuda()
+    print_runtime_versions()
 
     import torch
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
