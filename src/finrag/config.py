@@ -14,6 +14,7 @@ RAW_DOCUMENTS_DIR = DATA_DIR / "raw_documents"
 PROCESSED_CHUNKS_DIR = DATA_DIR / "processed_chunks"
 INDEX_DIR = DATA_DIR / "index"
 EVALUATION_DIR = DATA_DIR / "evaluation"
+BENCHMARKS_DIR = DATA_DIR / "benchmarks"
 
 CHUNKS_PATH = PROCESSED_CHUNKS_DIR / "chunks.jsonl"
 FAISS_INDEX_PATH = INDEX_DIR / "faiss.index"
@@ -35,5 +36,6 @@ def ensure_data_dirs() -> None:
         PROCESSED_CHUNKS_DIR,
         INDEX_DIR,
         EVALUATION_DIR,
+        BENCHMARKS_DIR,
     ]:
         path.mkdir(parents=True, exist_ok=True)

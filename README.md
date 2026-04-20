@@ -33,6 +33,21 @@ The project explores the following research questions:
 
 ---
 
+# Current Project Direction
+
+FinRAG is a research assistant for financial analysts who need to query real SEC filings and receive evidence-backed answers.
+
+The practical target is:
+
+- Use SEC EDGAR filings as the retrieval corpus for the interactive demo.
+- Use FinanceBench as the primary Q&A evaluation benchmark because it includes realistic financial analyst questions, gold answers, and citation evidence.
+- Use FinQA and TAT-QA as secondary numerical reasoning benchmarks.
+- Use Qwen 2.5 7B as the generation model, served from a Colab GPU, while Streamlit and retrieval run locally on CPU.
+
+The system should answer factual lookup, comparative, numerical reasoning, and risk/context questions grounded in filings. It should not try to answer real-time stock-price questions, forecasting questions, or unsupported multi-turn speculation.
+
+---
+
 # System Architecture
 
 FinRAG consists of three major components.
@@ -147,10 +162,19 @@ FinRAG will be evaluated using both quantitative and qualitative metrics.
 
 The following systems will be compared:
 
-1. Baseline language model (no retrieval)
-2. Retrieval-Augmented Generation model
-3. RAG + fine-tuned financial QA model
-4. RAG + hallucination detection system
+1. Qwen 2.5 7B without retrieval
+2. Retrieval-Augmented Generation with SEC filing evidence
+3. RAG + Qwen 2.5 7B LoRA fine-tuned on financial QA data
+4. RAG + citation verification and hallucination detection
+
+Primary benchmark:
+
+- FinanceBench: answer quality, citation correctness, and evidence support.
+
+Secondary benchmarks:
+
+- FinQA: numerical reasoning over financial reports.
+- TAT-QA: hybrid table-and-text financial reasoning.
 
 ---
 
@@ -216,6 +240,77 @@ sentence-transformers
 datasets
 pandas
 numpy
+```
+
+---
+
+# Reproducible Commands
+
+Run all commands from the repository root.
+
+Prepare the SEC demo corpus:
+
+```bash
+export PYTHONPATH=src
+python -m finrag.download_sec_filings
+python -m finrag.chunk_documents
+python -m finrag.build_index
+```
+
+Prepare benchmark data:
+
+```bash
+export PYTHONPATH=src
+python -m finrag.benchmarks financebench
+python -m finrag.benchmarks tatqa --split dev
+python -m finrag.fine_tuning --output-path data/fine_tuning/finqa_train.jsonl --limit 2000
+```
+
+Run benchmark evaluation with gold evidence:
+
+```bash
+export PYTHONPATH=src
+python -m finrag.evaluate_benchmark --input-csv data/evaluation/financebench_eval.csv --backend extractive
+python -m finrag.evaluate_benchmark --input-csv data/evaluation/financebench_eval.csv --backend remote-qwen --endpoint https://YOUR-NGROK-URL.ngrok-free.dev
+```
+
+Run the local Streamlit app on CPU:
+
+```bash
+export PYTHONPATH=src
+streamlit run demo/app.py
+```
+
+Train Qwen 2.5 7B LoRA in Colab:
+
+```bash
+%cd /content/gdrive/MyDrive/project_folder/Financial_QA_ChatBot
+!bash scripts/colab_setup.sh
+!PYTHONPATH=src python -m finrag.train_qlora \
+  --model-name Qwen/Qwen2.5-7B-Instruct \
+  --train-file data/fine_tuning/finqa_train.jsonl \
+  --output-dir /content/gdrive/MyDrive/finrag-adapters/qwen2_5_7b_finqa_lora \
+  --epochs 1 \
+  --max-length 1536 \
+  --batch-size 1 \
+  --gradient-accumulation-steps 16 \
+  --learning-rate 2e-4 \
+  --lora-r 16 \
+  --lora-alpha 32
+```
+
+Serve Qwen from Colab and paste the public URL into Streamlit:
+
+```bash
+!bash scripts/colab_start_qwen_server.sh
+```
+
+Then, in another Colab cell:
+
+```python
+import os
+os.environ["NGROK_AUTHTOKEN"] = "PASTE_YOUR_NGROK_TOKEN_HERE"
+%run scripts/colab_start_ngrok.py
 ```
 
 ## Current MVP Quickstart

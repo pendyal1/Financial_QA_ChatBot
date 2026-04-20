@@ -5,7 +5,7 @@ from typing import Any
 
 import requests
 
-from finrag.answer import build_context
+from finrag.answer import build_context, extractive_answer, is_low_content_answer
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
 from finrag.query import analyze_query
@@ -27,7 +27,7 @@ def endpoint_generate(
 
     payload: dict[str, Any] = {
         "question": question,
-        "context": build_context(retrieved),
+        "context": build_context(retrieved, question=question),
         "allowed_citations": [result.chunk_id for result in retrieved],
         "max_new_tokens": max_new_tokens,
     }
@@ -56,6 +56,8 @@ def answer_with_remote_qwen(
         retrieved=retrieved,
         max_new_tokens=max_new_tokens,
     )
+    if is_low_content_answer(answer):
+        answer = extractive_answer(question, retrieved)
     citations = extract_citations(answer)
     verification = verify_answer(answer, retrieved, expected_tickers=intent.tickers or None)
     return RAGResponse(

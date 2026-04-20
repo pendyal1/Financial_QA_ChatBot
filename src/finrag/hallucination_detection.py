@@ -83,10 +83,15 @@ def verify_answer(
             + ", ".join(wrong_company)
         )
 
+    answer_without_citations = re.sub(r"\[[^\]]+\]", "", answer)
+    answer_token_count = len(content_tokens(answer_without_citations))
+    if answer_token_count < 5:
+        notes.append("The answer contains citations but no substantive supported claim.")
+
     evidence_tokens = content_tokens(" ".join(result.text for result in retrieved))
     sentence_scores = [
         overlap_ratio(content_tokens(sentence), evidence_tokens)
-        for sentence in sentence_split(re.sub(r"\[[^\]]+\]", "", answer))
+        for sentence in sentence_split(answer_without_citations)
     ]
     support_score = sum(sentence_scores) / len(sentence_scores) if sentence_scores else 0.0
     citation_score = len(valid) / len(cited) if cited else 0.0
@@ -97,6 +102,8 @@ def verify_answer(
 
     confidence = (0.45 * citation_score) + (0.35 * support_score) + (0.20 * retrieval_score)
     confidence = round(max(0.0, min(1.0, confidence)), 2)
+    if answer_token_count < 5:
+        confidence = min(confidence, 0.25)
 
     if confidence >= 0.72 and not missing and not wrong_company:
         risk = "Low"

@@ -9,6 +9,9 @@ data/raw_documents/*
 data/processed_chunks/*
 data/index/*
 data/fine_tuning/*
+data/benchmarks/*
+data/evaluation/*_eval.csv
+data/evaluation/benchmark_results_*.csv
 data/evaluation/results_*.csv
 outputs/
 wandb/
@@ -18,4 +21,5 @@ runs/
 !data/processed_chunks/.gitkeep
 !data/index/.gitkeep
 !data/fine_tuning/.gitkeep
+!data/benchmarks/.gitkeep
 !data/evaluation/sample_questions.csv

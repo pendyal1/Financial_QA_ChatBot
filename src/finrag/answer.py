@@ -13,10 +13,12 @@ from finrag.query import analyze_query, evidence_for_question
 from finrag.retrieve import Retriever
 
 
-SYSTEM_PROMPT = """You answer financial questions using only the supplied evidence.
-If the evidence is insufficient, say that the available filings do not provide enough support.
+SYSTEM_PROMPT = """You are a financial analyst assistant for SEC filings.
+Answer only from the supplied evidence.
+Start with the answer, not a citation list.
 Every factual sentence must include at least one bracketed citation like [AAPL-2024-11-01-0007].
-Do not cite sources that are not in the evidence."""
+Do not cite sources that are not in the evidence.
+If the evidence does not support an answer, say the available filings do not provide enough support."""
 
 BOILERPLATE_PATTERNS = [
     r"\bwebsite\b",
@@ -27,6 +29,9 @@ BOILERPLATE_PATTERNS = [
     r"\bnot incorporated by reference\b",
     r"\bforward-looking statements\b",
     r"\bcause actual results and events to differ materially\b",
+    r"\bfollowing summarizes factors\b",
+    r"\bnot exhaustive\b",
+    r"\bcomplete statement of all potential risks\b",
 ]
 
 RISK_SIGNAL_PATTERNS = [
@@ -52,13 +57,52 @@ RISK_SIGNAL_PATTERNS = [
     r"\bcould harm\b",
 ]
 
+QUESTION_STOPWORDS = {
+    "about",
+    "aapl",
+    "amazon",
+    "amzn",
+    "apple",
+    "company",
+    "describe",
+    "did",
+    "does",
+    "filing",
+    "filings",
+    "highlight",
+    "highlighted",
+    "mention",
+    "mentioned",
+    "microsoft",
+    "msft",
+    "nvidia",
+    "nvda",
+    "related",
+    "report",
+    "reported",
+    "reports",
+    "risk",
+    "risks",
+    "say",
+    "says",
+    "tesla",
+    "their",
+    "tsla",
+    "what",
+}
 
-def build_context(results: list[RetrievalResult], max_chars_per_chunk: int = 2500) -> str:
+
+def build_context(
+    results: list[RetrievalResult],
+    question: str | None = None,
+    max_chars_per_chunk: int = 1800,
+) -> str:
     blocks = []
     for result in results:
-        text = result.text[:max_chars_per_chunk]
+        text = evidence_for_question(question, result.text) if question else result.text
+        text = text[:max_chars_per_chunk]
         blocks.append(
-            f"[{result.chunk_id}]\n"
+            f"Source ID: [{result.chunk_id}]\n"
             f"Company: {result.company} ({result.ticker})\n"
             f"Source: {result.source}\n"
             f"Evidence: {text}"
@@ -90,16 +134,30 @@ def clean_sentence(sentence: str) -> str:
     return sentence.strip()
 
 
+def substantive_terms(text: str) -> set[str]:
+    return {
+        term
+        for term in re.findall(r"[a-zA-Z][a-zA-Z0-9-]{2,}", text.lower())
+        if term not in QUESTION_STOPWORDS
+    }
+
+
+def remove_citations(text: str) -> str:
+    return re.sub(r"\[[A-Z0-9_.-]+-\d{4}-\d{2}-\d{2}-\d{4}\]", "", text)
+
+
+def is_low_content_answer(answer: str) -> bool:
+    without_citations = remove_citations(answer)
+    words = re.findall(r"[A-Za-z][A-Za-z0-9-]{2,}", without_citations)
+    return len(words) < 8
+
+
 def extractive_answer(question: str, results: list[RetrievalResult]) -> str:
     if not results:
         return "The available filings do not provide enough support to answer this question."
 
     intent = analyze_query(question)
-    question_terms = {
-        term
-        for term in re.findall(r"[a-zA-Z][a-zA-Z0-9-]{2,}", question.lower())
-        if term not in {"what", "does", "did", "about", "related", "report", "say"}
-    }
+    question_terms = substantive_terms(question)
     candidates: list[tuple[float, str, str]] = []
     for result in results:
         evidence_text = evidence_for_question(question, result.text)
@@ -107,10 +165,14 @@ def extractive_answer(question: str, results: list[RetrievalResult]) -> str:
         for sentence in sentences:
             if len(sentence) < 80:
                 continue
+            if len(sentence) > 1200:
+                continue
             if is_boilerplate(sentence):
                 continue
             terms = set(re.findall(r"[a-zA-Z][a-zA-Z0-9-]{2,}", sentence.lower()))
             overlap = len(question_terms & terms)
+            if intent.is_risk_question and question_terms and overlap == 0:
+                continue
             score = overlap + result.score
             if intent.is_risk_question:
                 score += 1.5 * risk_signal_score(sentence)
@@ -126,14 +188,19 @@ def extractive_answer(question: str, results: list[RetrievalResult]) -> str:
 
     selected = []
     used_citations = set()
+    used_sentences = set()
     for _, sentence, chunk_id in candidates:
         if chunk_id in used_citations:
             continue
         cleaned = clean_sentence(sentence)
         if len(cleaned) < 80:
             continue
+        sentence_key = re.sub(r"[^a-z0-9]+", " ", cleaned.lower()).strip()
+        if sentence_key in used_sentences:
+            continue
         selected.append(f"{cleaned} [{chunk_id}]")
         used_citations.add(chunk_id)
+        used_sentences.add(sentence_key)
         if len(selected) == 3:
             break
     if intent.is_risk_question and results:
@@ -147,7 +214,7 @@ def llm_answer(question: str, results: list[RetrievalResult], model: str) -> str
         return extractive_answer(question, results)
 
     client = OpenAI()
-    context = build_context(results)
+    context = build_context(results, question=question)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -167,6 +234,8 @@ def answer_question(question: str, top_k: int = 5, model: str = DEFAULT_OPENAI_M
     retriever = Retriever()
     retrieved = retriever.search(question, top_k=top_k, allowed_tickers=intent.tickers or None)
     answer = llm_answer(question, retrieved, model)
+    if is_low_content_answer(answer):
+        answer = extractive_answer(question, retrieved)
     citations = extract_citations(answer)
     verification = verify_answer(answer, retrieved, expected_tickers=intent.tickers or None)
     return RAGResponse(

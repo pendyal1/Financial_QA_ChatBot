@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from pathlib import Path
 
 import torch
@@ -78,8 +79,10 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
     user_content = (
         f"Question: {question}\n\n"
         f"Evidence:\n{context}\n\n"
-        "Write a concise answer in 2-5 bullets or short sentences. "
-        "Every factual claim must include one bracketed citation from the evidence."
+        "Write 2-4 concise bullets that directly answer the question. "
+        "Each bullet must contain a substantive claim in words plus one bracketed citation. "
+        "Do not output only citation IDs. "
+        "Do not include citations unless they support the words in the same bullet. "
         f"{citation_rule}\n\nAnswer:"
     )
     messages = [
@@ -89,6 +92,13 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
     if hasattr(tokenizer, "apply_chat_template") and tokenizer.chat_template:
         return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return f"{SYSTEM_PROMPT}\n\n{user_content}"
+
+
+def clean_generation(text: str) -> str:
+    text = text.strip()
+    text = re.sub(r"^(assistant|answer)\s*:\s*", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text
 
 
 def create_app(model_name: str, adapter_path: str | None, trust_remote_code: bool) -> FastAPI:
@@ -117,7 +127,7 @@ def create_app(model_name: str, adapter_path: str | None, trust_remote_code: boo
                 eos_token_id=tokenizer.eos_token_id,
             )
         generated = output[0][inputs["input_ids"].shape[-1] :]
-        answer = tokenizer.decode(generated, skip_special_tokens=True).strip()
+        answer = clean_generation(tokenizer.decode(generated, skip_special_tokens=True))
         return GenerateResponse(answer=answer)
 
     return app
