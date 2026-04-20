@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,14 @@ def print_runtime_versions() -> None:
     print("Runtime package versions:")
     for version in versions:
         print(f"  {version}")
+
+
+def disable_optional_vision_imports() -> None:
+    # This project is text-only. Some Colab runtimes have a mismatched
+    # torchvision build, and transformers can import optional vision modules
+    # while resolving causal-LM classes through PEFT.
+    os.environ.setdefault("TRANSFORMERS_NO_TORCHVISION", "1")
+    os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 
 
 def require_cuda() -> None:
@@ -134,6 +143,7 @@ def write_run_config(args: argparse.Namespace) -> None:
 
 
 def train(args: argparse.Namespace) -> None:
+    disable_optional_vision_imports()
     require_cuda()
     print_runtime_versions()
 
