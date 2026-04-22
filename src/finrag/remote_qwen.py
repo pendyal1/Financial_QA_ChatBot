@@ -50,6 +50,22 @@ def answer_with_remote_qwen(
     intent = analyze_query(question)
     retriever = Retriever()
     retrieved = retriever.search(question, top_k=top_k, allowed_tickers=intent.tickers or None)
+    return answer_with_remote_qwen_retrieved(
+        question=question,
+        retrieved=retrieved,
+        endpoint=endpoint,
+        max_new_tokens=max_new_tokens,
+        expected_tickers=intent.tickers or None,
+    )
+
+
+def answer_with_remote_qwen_retrieved(
+    question: str,
+    retrieved: list[RetrievalResult],
+    endpoint: str = DEFAULT_QWEN_ENDPOINT,
+    max_new_tokens: int = 350,
+    expected_tickers: list[str] | None = None,
+) -> RAGResponse:
     answer = endpoint_generate(
         endpoint=endpoint,
         question=question,
@@ -59,7 +75,7 @@ def answer_with_remote_qwen(
     if is_low_content_answer(answer):
         answer = extractive_answer(question, retrieved)
     citations = extract_citations(answer)
-    verification = verify_answer(answer, retrieved, expected_tickers=intent.tickers or None)
+    verification = verify_answer(answer, retrieved, expected_tickers=expected_tickers)
     return RAGResponse(
         question=question,
         answer=answer,

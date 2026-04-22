@@ -281,6 +281,11 @@ export PYTHONPATH=src
 streamlit run demo/app.py
 ```
 
+The app supports two modes:
+
+- `Indexed SEC corpus`: retrieve over the FAISS index built from downloaded SEC filings.
+- `Uploaded SEC filing`: upload one HTML, XML, TXT, or PDF SEC filing and ask questions only about that document, without rebuilding the repo index.
+
 Train Qwen 2.5 7B LoRA in Colab:
 
 ```bash
@@ -355,7 +360,9 @@ PYTHONPATH=src python -m finrag.evaluate
 PYTHONPATH=src streamlit run demo/app.py
 ```
 
-Paste the Colab Qwen endpoint URL into the app. The local app performs retrieval and citation verification; the Colab GPU endpoint performs Qwen generation. The local extractor is only a debug path for checking retrieval and citations without the Colab endpoint.
+Paste the Colab Qwen endpoint URL into the app if you want Qwen generation. The local app performs retrieval and citation verification; the Colab GPU endpoint performs Qwen generation. The local extractor is only a debug path for checking retrieval and citations without the Colab endpoint.
+
+If you only want to analyze one filing, switch the app to `Uploaded SEC filing`, upload the document, and ask questions on that single file.
 
 ### Downloaded Starter Data
 

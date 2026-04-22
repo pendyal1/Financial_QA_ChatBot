@@ -229,21 +229,35 @@ def llm_answer(question: str, results: list[RetrievalResult], model: str) -> str
     return response.choices[0].message.content or ""
 
 
-def answer_question(question: str, top_k: int = 5, model: str = DEFAULT_OPENAI_MODEL) -> RAGResponse:
-    intent = analyze_query(question)
-    retriever = Retriever()
-    retrieved = retriever.search(question, top_k=top_k, allowed_tickers=intent.tickers or None)
+def build_response_from_retrieved(
+    question: str,
+    retrieved: list[RetrievalResult],
+    model: str = DEFAULT_OPENAI_MODEL,
+    expected_tickers: list[str] | None = None,
+) -> RAGResponse:
     answer = llm_answer(question, retrieved, model)
     if is_low_content_answer(answer):
         answer = extractive_answer(question, retrieved)
     citations = extract_citations(answer)
-    verification = verify_answer(answer, retrieved, expected_tickers=intent.tickers or None)
+    verification = verify_answer(answer, retrieved, expected_tickers=expected_tickers)
     return RAGResponse(
         question=question,
         answer=answer,
         citations=citations,
         retrieved=retrieved,
         verification=verification,
+    )
+
+
+def answer_question(question: str, top_k: int = 5, model: str = DEFAULT_OPENAI_MODEL) -> RAGResponse:
+    intent = analyze_query(question)
+    retriever = Retriever()
+    retrieved = retriever.search(question, top_k=top_k, allowed_tickers=intent.tickers or None)
+    return build_response_from_retrieved(
+        question=question,
+        retrieved=retrieved,
+        model=model,
+        expected_tickers=intent.tickers or None,
     )
 
 
