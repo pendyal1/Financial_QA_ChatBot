@@ -310,6 +310,11 @@ Serve Qwen from Colab and paste the public URL into Streamlit:
 !bash scripts/colab_start_qwen_server.sh
 ```
 
+This command now launches the server from a detached Python subprocess and writes:
+
+- `qwen_server.log`
+- `qwen_server.pid`
+
 Then, in another Colab cell:
 
 ```python
