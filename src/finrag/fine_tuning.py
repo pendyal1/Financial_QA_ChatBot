@@ -13,6 +13,7 @@ from finrag.config import DATA_DIR
 
 DEFAULT_OUTPUT_PATH = DATA_DIR / "fine_tuning" / "financial_qa_mix_train.jsonl"
 DEFAULT_MANIFEST_PATH = DATA_DIR / "fine_tuning" / "financial_qa_mix_manifest.json"
+FINQA_TRAIN_URL = "https://raw.githubusercontent.com/czyssrs/FinQA/main/dataset/train.json"
 CONVFINQA_TRAIN_URL = "https://huggingface.co/datasets/AdaptLLM/ConvFinQA/resolve/main/train_turn.json"
 TATQA_TRAIN_URL = "https://raw.githubusercontent.com/NExTplusplus/TAT-QA/master/dataset_raw/tatqa_dataset_train.json"
 
@@ -76,28 +77,48 @@ def fetch_json(url: str) -> Any:
     return response.json()
 
 
+def load_finqa_rows(trust_remote_code: bool) -> list[dict[str, Any]]:
+    try:
+        payload = fetch_json(FINQA_TRAIN_URL)
+        if isinstance(payload, list):
+            return payload
+    except Exception as exc:
+        print(f"Falling back from raw FinQA JSON download: {exc}")
+
+    try:
+        dataset = load_dataset(
+            "ibm-research/finqa",
+            split="train",
+            trust_remote_code=trust_remote_code,
+        )
+        return [dict(row) for row in dataset]
+    except Exception as exc:
+        raise RuntimeError(
+            "Could not load FinQA from either the official raw JSON or the Hugging Face dataset loader."
+        ) from exc
+
+
 def prepare_finqa(limit: int | None, trust_remote_code: bool) -> list[dict[str, Any]]:
-    dataset = load_dataset(
-        "ibm-research/finqa",
-        split="train",
-        trust_remote_code=trust_remote_code,
-    )
+    if limit == 0:
+        return []
+    rows = load_finqa_rows(trust_remote_code=trust_remote_code)
     if limit:
-        dataset = dataset.select(range(min(limit, len(dataset))))
+        rows = rows[:limit]
 
     records: list[dict[str, Any]] = []
-    for row in dataset:
+    for row in rows:
+        qa = row.get("qa", {}) or {}
         context_parts = [
             " ".join(row.get("pre_text", []) or []),
-            render_table(row.get("table")),
+            render_table(row.get("table_ori") or row.get("table")),
             " ".join(row.get("post_text", []) or []),
         ]
         record = make_record(
             dataset_name="FinQA",
-            question=row.get("question", ""),
-            answer=row.get("answer", "") or row.get("final_result", ""),
+            question=qa.get("question", ""),
+            answer=qa.get("answer", "") or qa.get("exe_ans", ""),
             context_parts=context_parts,
-            metadata={"id": row.get("id", ""), "gold_inds": row.get("gold_inds", "")},
+            metadata={"id": row.get("id", ""), "gold_inds": qa.get("gold_inds", "")},
         )
         if record:
             records.append(record)
@@ -105,6 +126,8 @@ def prepare_finqa(limit: int | None, trust_remote_code: bool) -> list[dict[str, 
 
 
 def prepare_convfinqa(limit: int | None) -> list[dict[str, Any]]:
+    if limit == 0:
+        return []
     payload = fetch_json(CONVFINQA_TRAIN_URL)
     rows = payload[:limit] if limit else payload
 
@@ -129,6 +152,8 @@ def prepare_convfinqa(limit: int | None) -> list[dict[str, Any]]:
 
 
 def prepare_tatqa(limit: int | None) -> list[dict[str, Any]]:
+    if limit == 0:
+        return []
     payload = fetch_json(TATQA_TRAIN_URL)
     records: list[dict[str, Any]] = []
     question_count = 0
