@@ -10,7 +10,7 @@ from finrag.config import DEFAULT_OPENAI_MODEL
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
 from finrag.query import analyze_query, evidence_for_question
-from finrag.retrieve import Retriever
+from finrag.sec_live import retrieve_live_sec
 
 
 SYSTEM_PROMPT = """You are a financial analyst assistant for SEC filings.
@@ -250,14 +250,12 @@ def build_response_from_retrieved(
 
 
 def answer_question(question: str, top_k: int = 5, model: str = DEFAULT_OPENAI_MODEL) -> RAGResponse:
-    intent = analyze_query(question)
-    retriever = Retriever()
-    retrieved = retriever.search(question, top_k=top_k, allowed_tickers=intent.tickers or None)
+    company, retrieved = retrieve_live_sec(question, top_k=top_k)
     return build_response_from_retrieved(
         question=question,
         retrieved=retrieved,
         model=model,
-        expected_tickers=intent.tickers or None,
+        expected_tickers=[company.ticker],
     )
 
 

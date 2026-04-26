@@ -15,6 +15,7 @@ PROCESSED_CHUNKS_DIR = DATA_DIR / "processed_chunks"
 INDEX_DIR = DATA_DIR / "index"
 EVALUATION_DIR = DATA_DIR / "evaluation"
 BENCHMARKS_DIR = DATA_DIR / "benchmarks"
+SEC_CACHE_DIR = DATA_DIR / "sec_cache"
 
 CHUNKS_PATH = PROCESSED_CHUNKS_DIR / "chunks.jsonl"
 FAISS_INDEX_PATH = INDEX_DIR / "faiss.index"
@@ -23,6 +24,9 @@ INDEX_METADATA_PATH = INDEX_DIR / "chunks_metadata.json"
 DEFAULT_TICKERS = ["AAPL", "MSFT", "TSLA", "NVDA", "AMZN"]
 DEFAULT_EMBEDDING_MODEL = os.getenv(
     "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+)
+DEFAULT_RERANKER_MODEL = os.getenv(
+    "RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"
 )
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 DEFAULT_SEC_USER_AGENT = os.getenv(
@@ -37,5 +41,6 @@ def ensure_data_dirs() -> None:
         INDEX_DIR,
         EVALUATION_DIR,
         BENCHMARKS_DIR,
+        SEC_CACHE_DIR,
     ]:
         path.mkdir(parents=True, exist_ok=True)

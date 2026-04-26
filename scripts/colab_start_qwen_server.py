@@ -9,11 +9,11 @@ import urllib.request
 from pathlib import Path
 
 
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-14B-Instruct")
 PORT = int(os.getenv("PORT", "8000"))
 ADAPTER_PATH = os.getenv(
     "ADAPTER_PATH",
-    "/content/gdrive/MyDrive/finrag-adapters/qwen2_5_7b_finqa_lora",
+    "/content/gdrive/MyDrive/finrag-adapters/qwen2_5_14b_financial_qa_lora",
 )
 LOG_FILE = Path(os.getenv("LOG_FILE", "qwen_server.log"))
 PID_FILE = Path(os.getenv("PID_FILE", "qwen_server.pid"))

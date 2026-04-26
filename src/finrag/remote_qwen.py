@@ -8,8 +8,7 @@ import requests
 from finrag.answer import build_context, extractive_answer, is_low_content_answer
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
-from finrag.query import analyze_query
-from finrag.retrieve import Retriever
+from finrag.sec_live import retrieve_live_sec
 
 
 DEFAULT_QWEN_ENDPOINT = os.getenv("COLAB_QWEN_ENDPOINT", "").rstrip("/")
@@ -47,15 +46,13 @@ def answer_with_remote_qwen(
     top_k: int = 5,
     max_new_tokens: int = 350,
 ) -> RAGResponse:
-    intent = analyze_query(question)
-    retriever = Retriever()
-    retrieved = retriever.search(question, top_k=top_k, allowed_tickers=intent.tickers or None)
+    company, retrieved = retrieve_live_sec(question, top_k=top_k)
     return answer_with_remote_qwen_retrieved(
         question=question,
         retrieved=retrieved,
         endpoint=endpoint,
         max_new_tokens=max_new_tokens,
-        expected_tickers=intent.tickers or None,
+        expected_tickers=[company.ticker],
     )
 
 
