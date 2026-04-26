@@ -410,10 +410,12 @@ This is a public 7B instruct model on Hugging Face. No Hugging Face Inference AP
 Use a CUDA-backed Colab runtime, then run:
 
 ```bash
-pip install -r requirements-colab.txt
+bash scripts/colab_setup.sh
 ```
 
 Do not use `--force-reinstall` on Colab. It can replace Colab's CUDA/PyTorch packages and produce CUDA toolkit conflicts. If you already ran a force reinstall, restart the Colab runtime before continuing.
+
+If you hit `ModuleNotFoundError: No module named 'triton.ops'` while importing `bitsandbytes`, your runtime still has an older `bitsandbytes` wheel mixed with a newer Triton install. Restart the runtime, rerun `bash scripts/colab_setup.sh`, and verify the versions again.
 
 Verify the runtime:
 

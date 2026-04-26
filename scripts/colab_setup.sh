@@ -14,10 +14,16 @@ PY
 # optional vision modules.
 pip uninstall -y torchvision torchaudio torchtext >/dev/null 2>&1 || true
 
+# Older bitsandbytes builds can fail on newer Triton releases with
+# `ModuleNotFoundError: No module named 'triton.ops'`. Remove both first so
+# Colab does not keep a stale wheel around.
+pip uninstall -y bitsandbytes triton >/dev/null 2>&1 || true
+
 # Keep Colab's preinstalled torch/CUDA stack. Install only the text-training
 # dependencies this project needs.
 pip install -q --upgrade \
   "accelerate==1.1.1" \
+  "bitsandbytes==0.49.2" \
   "datasets==2.21.0" \
   "faiss-cpu>=1.8.0" \
   "fastapi>=0.115.0" \
@@ -35,6 +41,7 @@ pip install -q --upgrade \
   "uvicorn>=0.30.0"
 
 python - <<'PY'
+import importlib.metadata as metadata
 import torch
 import transformers
 import peft
@@ -48,6 +55,10 @@ print("  transformers", transformers.__version__)
 print("  peft", peft.__version__)
 print("  accelerate", accelerate.__version__)
 print("  bitsandbytes", bitsandbytes.__version__)
+try:
+    print("  triton", metadata.version("triton"))
+except metadata.PackageNotFoundError:
+    print("  triton", "NOT INSTALLED")
 from transformers import PreTrainedModel
 print("  PreTrainedModel import OK")
 PY
