@@ -18,6 +18,8 @@ from finrag.remote_qwen import (  # noqa: E402
 )
 from finrag.uploaded_filing import (  # noqa: E402
     SUPPORTED_UPLOAD_TYPES,
+    build_multi_doc_index,
+    build_sec_edgar_index,
     build_uploaded_filing_index,
 )
 
@@ -37,7 +39,7 @@ question = st.text_input(
 )
 document_source = st.selectbox(
     "Document source",
-    options=["Indexed SEC corpus", "Uploaded SEC filing"],
+    options=["Indexed SEC corpus", "Uploaded SEC filing", "Upload Documents", "Fetch from SEC EDGAR"],
     index=0,
 )
 top_k = st.slider("Retrieved chunks", min_value=3, max_value=10, value=5)
@@ -54,6 +56,8 @@ endpoint = st.text_input(
 uploaded_file = None
 uploaded_index = None
 expected_tickers: list[str] | None = None
+multi_doc_index = None
+sec_edgar_index = None
 
 if document_source == "Uploaded SEC filing":
     uploaded_file = st.file_uploader(
@@ -74,6 +78,68 @@ if document_source == "Uploaded SEC filing":
         except Exception as exc:
             st.error(f"Could not parse uploaded filing: {exc}")
             st.stop()
+
+elif document_source == "Upload Documents":
+    st.markdown("Upload one or more documents (PDF, TXT, or HTML), build an index, then ask questions.")
+    uploaded_files = st.file_uploader(
+        "Upload documents",
+        type=["pdf", "txt", "html", "htm"],
+        accept_multiple_files=True,
+        help="Multiple files supported. Each file is parsed and chunked automatically.",
+    )
+    col_btn, col_status = st.columns([1, 3])
+    if uploaded_files:
+        if col_btn.button("Build Index", use_container_width=True):
+            with st.spinner(f"Parsing and indexing {len(uploaded_files)} file(s)..."):
+                try:
+                    files = [(f.name, f.getvalue()) for f in uploaded_files]
+                    st.session_state["multi_doc_index"] = build_multi_doc_index(files)
+                    idx = st.session_state["multi_doc_index"]
+                    col_status.success(
+                        f"Indexed {idx.chunk_count} chunks from {idx.doc_count} document(s)."
+                    )
+                except Exception as exc:
+                    col_status.error(f"Indexing failed: {exc}")
+    if "multi_doc_index" in st.session_state:
+        multi_doc_index = st.session_state["multi_doc_index"]
+        st.info(
+            f"Active index: {multi_doc_index.chunk_count} chunks from "
+            f"{multi_doc_index.doc_count} document(s). Upload new files and click Build Index to replace."
+        )
+
+elif document_source == "Fetch from SEC EDGAR":
+    col_ticker, col_form = st.columns([1, 1])
+    sec_ticker_input = col_ticker.text_input(
+        "Ticker symbol",
+        value="AAPL",
+        placeholder="e.g. AAPL, NVDA, MSFT",
+    ).strip().upper()
+    sec_form_input = col_form.selectbox("Form type", options=["10-K", "10-Q"])
+
+    col_fetch, col_fetch_status = st.columns([1, 3])
+    if col_fetch.button("Fetch from EDGAR", use_container_width=True):
+        if not sec_ticker_input:
+            col_fetch_status.error("Enter a ticker symbol.")
+        else:
+            with st.spinner(
+                f"Fetching {sec_ticker_input} {sec_form_input} from SEC EDGAR and building index…"
+            ):
+                try:
+                    fetched = build_sec_edgar_index(sec_ticker_input, sec_form_input)
+                    st.session_state["sec_edgar_index"] = fetched
+                    st.session_state["sec_edgar_ticker"] = sec_ticker_input
+                except Exception as exc:
+                    col_fetch_status.error(f"Fetch failed: {exc}")
+
+    if "sec_edgar_index" in st.session_state:
+        sec_edgar_index = st.session_state["sec_edgar_index"]
+        c = sec_edgar_index.chunks[0]
+        st.info(
+            f"Loaded: **{c.company}** — {c.form} filed {c.filing_date} "
+            f"| {sec_edgar_index.chunk_count} chunks "
+            f"| [View on SEC EDGAR]({c.source_url})"
+        )
+
 else:
     if not FAISS_INDEX_PATH.exists() or not INDEX_METADATA_PATH.exists():
         st.error(
@@ -105,6 +171,51 @@ if st.button("Ask", type="primary") and question.strip():
                         question=question,
                         retrieved=retrieved,
                         expected_tickers=expected_tickers,
+                    )
+            elif document_source == "Upload Documents":
+                if multi_doc_index is None:
+                    st.error("Upload documents and click Build Index before asking a question.")
+                    st.stop()
+                retrieved = multi_doc_index.search(question, top_k=top_k)
+                if backend == "Colab GPU Qwen endpoint":
+                    if not endpoint.strip():
+                        st.error("Paste the Colab Qwen endpoint URL before asking.")
+                        st.stop()
+                    response = answer_with_remote_qwen_retrieved(
+                        question=question,
+                        retrieved=retrieved,
+                        endpoint=endpoint,
+                        max_new_tokens=350,
+                        expected_tickers=None,
+                    )
+                else:
+                    response = build_response_from_retrieved(
+                        question=question,
+                        retrieved=retrieved,
+                        expected_tickers=None,
+                    )
+            elif document_source == "Fetch from SEC EDGAR":
+                if sec_edgar_index is None:
+                    st.error("Fetch a filing from SEC EDGAR before asking a question.")
+                    st.stop()
+                retrieved = sec_edgar_index.search(question, top_k=top_k)
+                filing_tickers = [sec_edgar_index.chunks[0].ticker] if sec_edgar_index.chunks else None
+                if backend == "Colab GPU Qwen endpoint":
+                    if not endpoint.strip():
+                        st.error("Paste the Colab Qwen endpoint URL before asking.")
+                        st.stop()
+                    response = answer_with_remote_qwen_retrieved(
+                        question=question,
+                        retrieved=retrieved,
+                        endpoint=endpoint,
+                        max_new_tokens=350,
+                        expected_tickers=filing_tickers,
+                    )
+                else:
+                    response = build_response_from_retrieved(
+                        question=question,
+                        retrieved=retrieved,
+                        expected_tickers=filing_tickers,
                     )
             else:
                 if backend == "Colab GPU Qwen endpoint":

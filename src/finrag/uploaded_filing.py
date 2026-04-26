@@ -11,13 +11,55 @@ from bs4 import BeautifulSoup
 from sentence_transformers import SentenceTransformer
 
 from finrag.chunk_documents import chunk_words, normalize_text
-from finrag.config import DEFAULT_EMBEDDING_MODEL
+from finrag.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_SEC_USER_AGENT
 from finrag.models import DocumentChunk, RetrievalResult
 from finrag.query import analyze_query
 from finrag.retrieve import lexical_score, risk_score
 
 
 SUPPORTED_UPLOAD_TYPES = ["txt", "html", "htm", "xml", "xhtml", "pdf"]
+
+# Matches runs of 4+ single letters each separated by exactly one space,
+# e.g. "r e v e n u e" — a common PDF extraction artefact.
+_SPACED_LETTERS = re.compile(
+    r"(?<![A-Za-z0-9])([A-Za-z](?: [A-Za-z]){3,})(?![A-Za-z0-9])"
+)
+# Same for digits, e.g. "1 2 3 4 5" inside tables.
+_SPACED_DIGITS = re.compile(
+    r"(?<![A-Za-z0-9,.(])(\d(?: \d){3,})(?![A-Za-z0-9,.(])"
+)
+
+
+def _strip_spaces(m: re.Match) -> str:
+    return m.group(0).replace(" ", "")
+
+
+def clean_pdf_text(text: str) -> str:
+    """Fix common PDF-extraction artefacts before final whitespace normalisation.
+
+    Handles:
+    - Soft hyphens (U+00AD) left by some PDF renderers
+    - Hyphenated line breaks: "compet-\\nitive" -> "competitive"
+    - Spaced-out letters: "r e v e n u e" -> "revenue"
+    - Spaced-out digit runs: "1 2 3 4" -> "1234" (table artefact)
+    - Paragraph structure: double newlines are kept as paragraph markers;
+      single newlines (mid-paragraph line-wraps) are collapsed to spaces
+    """
+    # Remove soft hyphens
+    text = text.replace("\xad", "")
+    # Rejoin words broken across lines with a hyphen
+    text = re.sub(r"(\w)-\n\s*(\w)", r"\1\2", text)
+    # Rejoin spaced-out letters ("r e v e n u e" -> "revenue")
+    text = _SPACED_LETTERS.sub(_strip_spaces, text)
+    # Rejoin spaced-out digit runs ("1 2 3 4" -> "1234")
+    text = _SPACED_DIGITS.sub(_strip_spaces, text)
+    # Normalise blank lines (3+ newlines -> 2)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Collapse single newlines (within-paragraph line wraps) to a space
+    text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+    # Collapse runs of spaces / tabs (but not newlines, handled above)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip()
 
 
 @dataclass(frozen=True)
@@ -73,7 +115,15 @@ def parse_uploaded_filing(filename: str, file_bytes: bytes) -> tuple[str, Upload
         from pypdf import PdfReader
 
         reader = PdfReader(io.BytesIO(file_bytes))
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        pages: list[str] = []
+        for page in reader.pages:
+            try:
+                # layout mode preserves spatial character positions (pypdf >= 5.1)
+                page_text = page.extract_text(extraction_mode="layout") or ""
+            except TypeError:
+                page_text = page.extract_text() or ""
+            pages.append(page_text)
+        text = clean_pdf_text("\n\n".join(pages))
     else:
         decoded = file_bytes.decode("utf-8", errors="ignore")
         if suffix in {"html", "htm", "xml", "xhtml"}:
@@ -194,3 +244,123 @@ def build_uploaded_filing_index(
 ) -> UploadedFilingIndex:
     metadata, chunks = make_uploaded_chunks(filename=filename, file_bytes=file_bytes)
     return UploadedFilingIndex(metadata=metadata, chunks=chunks, embedding_model=embedding_model)
+
+
+class MultiDocIndex:
+    """In-memory search index for multiple uploaded documents of any type."""
+
+    def __init__(
+        self,
+        chunks: list[DocumentChunk],
+        embedding_model: str = DEFAULT_EMBEDDING_MODEL,
+    ) -> None:
+        self.chunks = chunks
+        self.model = SentenceTransformer(embedding_model)
+        self.embeddings = self.model.encode(
+            [chunk.text for chunk in chunks],
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        ).astype("float32")
+
+    @property
+    def chunk_count(self) -> int:
+        return len(self.chunks)
+
+    @property
+    def doc_count(self) -> int:
+        return len({chunk.doc_id for chunk in self.chunks})
+
+    def search(self, question: str, top_k: int = 5) -> list[RetrievalResult]:
+        intent = analyze_query(question)
+        query = self.model.encode(
+            [intent.expanded_question],
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        ).astype("float32")[0]
+        dense_scores = np.dot(self.embeddings, query)
+        order = np.argsort(-dense_scores)[: max(top_k * 10, top_k)]
+
+        candidates: list[tuple[float, RetrievalResult]] = []
+        for idx in order.tolist():
+            chunk = self.chunks[idx]
+            rerank = float(dense_scores[idx]) + (0.12 * lexical_score(question, chunk.text))
+            if intent.is_risk_question:
+                rerank += 0.28 * risk_score(chunk.text)
+            candidates.append(
+                (
+                    rerank,
+                    RetrievalResult(
+                        chunk_id=chunk.chunk_id,
+                        score=float(rerank),
+                        ticker=chunk.ticker,
+                        company=chunk.company,
+                        source=chunk.source,
+                        source_url=chunk.source_url,
+                        text=chunk.text,
+                    ),
+                )
+            )
+
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        return [result for _, result in candidates[:top_k]]
+
+
+def build_sec_edgar_index(
+    ticker: str,
+    form: str,
+    user_agent: str = DEFAULT_SEC_USER_AGENT,
+    embedding_model: str = DEFAULT_EMBEDDING_MODEL,
+) -> MultiDocIndex:
+    """Fetch the latest SEC filing for a ticker/form and return a searchable in-memory index.
+
+    Uses the same download path as the CLI (fetch_latest_filing) but skips
+    writing anything to disk.  The resulting MultiDocIndex can be queried
+    directly in the Streamlit app.
+    """
+    from finrag.download_sec_filings import fetch_latest_filing  # lazy to avoid circular risk
+
+    text, meta = fetch_latest_filing(ticker=ticker, form=form, user_agent=user_agent)
+    chunk_texts = chunk_words(text, 450, 80)
+    if not chunk_texts:
+        raise ValueError(f"No usable text extracted from {meta['ticker']} {form}.")
+
+    chunks = [
+        DocumentChunk(
+            chunk_id=f"{meta['ticker']}-{meta['filing_date']}-{idx:04d}",
+            doc_id=meta["doc_id"],
+            ticker=meta["ticker"],
+            company=meta["company"],
+            form=meta["form"],
+            filing_date=meta["filing_date"],
+            report_date=meta.get("report_date", ""),
+            accession_no=meta["accession_no"],
+            source_url=meta["source_url"],
+            source=meta["source"],
+            text=t,
+        )
+        for idx, t in enumerate(chunk_texts, start=1)
+    ]
+    return MultiDocIndex(chunks, embedding_model)
+
+
+def build_multi_doc_index(
+    files: list[tuple[str, bytes]],
+    embedding_model: str = DEFAULT_EMBEDDING_MODEL,
+) -> MultiDocIndex:
+    """Parse and embed multiple uploaded documents (PDF, TXT, HTML) into a searchable index."""
+    all_chunks: list[DocumentChunk] = []
+    errors: list[str] = []
+    for filename, file_bytes in files:
+        try:
+            _, chunks = make_uploaded_chunks(filename, file_bytes)
+            all_chunks.extend(chunks)
+        except ValueError as exc:
+            errors.append(f"{filename}: {exc}")
+    if not all_chunks:
+        msg = "No chunks could be extracted from the uploaded files."
+        if errors:
+            msg += " " + "; ".join(errors)
+        raise ValueError(msg)
+    return MultiDocIndex(all_chunks, embedding_model)
