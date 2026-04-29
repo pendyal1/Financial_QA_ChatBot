@@ -12,6 +12,31 @@ COMPANY_ALIASES = {
     "AMZN": ["amazon", "amzn"],
 }
 
+# Financial abbreviation expansions — improves retrieval recall for jargon queries.
+# Borrowed from the root retriever.py and extended.
+ABBREVIATION_EXPANSIONS: dict[str, str] = {
+    "EPS": "earnings per share EPS",
+    "P/E": "price to earnings ratio P/E",
+    "EBITDA": "earnings before interest taxes depreciation amortization EBITDA",
+    "YoY": "year over year YoY",
+    "QoQ": "quarter over quarter QoQ",
+    "10-K": "annual report 10-K SEC filing",
+    "10-Q": "quarterly report 10-Q SEC filing",
+    "FCF": "free cash flow FCF",
+    "ROE": "return on equity ROE",
+    "ROA": "return on assets ROA",
+    "CAPEX": "capital expenditure CAPEX",
+    "COGS": "cost of goods sold COGS",
+    "G&A": "general and administrative expenses",
+    "R&D": "research and development",
+    "SG&A": "selling general and administrative expenses SG&A",
+    "NI": "net income NI",
+    "OP": "operating profit OP",
+    "GP": "gross profit GP",
+    "GM": "gross margin GM",
+    "TTM": "trailing twelve months TTM",
+}
+
 RISK_TERMS = {
     "risk",
     "risks",
@@ -59,11 +84,20 @@ def is_risk_question(question: str) -> bool:
     return bool(tokens & RISK_TERMS)
 
 
+def expand_abbreviations(question: str) -> str:
+    """Replace financial abbreviations with their full forms for better retrieval."""
+    for abbrev, expansion in ABBREVIATION_EXPANSIONS.items():
+        # Word-boundary-safe replacement (abbrevs with / need special handling)
+        pattern = re.escape(abbrev)
+        question = re.sub(pattern, expansion, question)
+    return question
+
+
 def analyze_query(question: str) -> QueryIntent:
     risk_question = is_risk_question(question)
-    expanded = question
+    expanded = expand_abbreviations(question)
     if risk_question:
-        expanded = f"{question}\n{RISK_EXPANSION}"
+        expanded = f"{expanded}\n{RISK_EXPANSION}"
     return QueryIntent(
         tickers=detect_tickers(question),
         is_risk_question=risk_question,
