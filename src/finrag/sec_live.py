@@ -433,7 +433,7 @@ def live_retrieve(
     filing_url, filing_date, _ = _get_latest_10k_url(cik, user_agent)
 
     html = _stream_html(filing_url, user_agent)
-    text = _html_to_text(html)
+    text = _html_to_text(html)[:_MAX_DOC_CHARS]
     del html
 
     chunks = _chunk_text(text, ticker)
