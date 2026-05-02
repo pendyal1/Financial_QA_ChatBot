@@ -13,8 +13,8 @@ from finrag.config import DATA_DIR
 
 
 DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
-DEFAULT_TRAIN_FILE = DATA_DIR / "fine_tuning" / "finqa_train.jsonl"
-DEFAULT_OUTPUT_DIR = DATA_DIR.parent / "outputs" / "qwen2_5_7b_finqa_lora"
+DEFAULT_TRAIN_FILE = DATA_DIR / "fine_tuning" / "financial_qa_mix_train.jsonl"
+DEFAULT_OUTPUT_DIR = DATA_DIR.parent / "outputs" / "qwen2_5_7b_financial_qa_lora"
 
 
 def print_runtime_versions() -> None:
@@ -64,7 +64,21 @@ def load_messages_dataset(path: Path, eval_fraction: float, seed: int) -> tuple[
         raise FileNotFoundError(
             f"Training file not found: {path}. Run `PYTHONPATH=src python -m finrag.fine_tuning` first."
         )
-    dataset = load_dataset("json", data_files=str(path), split="train")
+    # Read JSONL manually and keep only the chat messages. The curated training
+    # file carries dataset-specific metadata with non-uniform nested shapes,
+    # which can break Arrow schema inference in `load_dataset("json", ...)`.
+    records: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            raw = line.strip()
+            if not raw:
+                continue
+            row = json.loads(raw)
+            messages = row.get("messages")
+            if not isinstance(messages, list) or not messages:
+                raise ValueError(f"Invalid training example at line {line_number}: missing messages list.")
+            records.append({"messages": messages})
+    dataset = Dataset.from_list(records)
     if eval_fraction <= 0 or len(dataset) < 20:
         return dataset, None
     split = dataset.train_test_split(test_size=eval_fraction, seed=seed)
@@ -225,7 +239,7 @@ def train(args: argparse.Namespace) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="QLoRA fine-tune a 7B instruct model for FinRAG.")
+    parser = argparse.ArgumentParser(description="QLoRA fine-tune Qwen 2.5 7B for FinRAG.")
     parser.add_argument("--model-name", default=DEFAULT_MODEL)
     parser.add_argument("--train-file", type=Path, default=DEFAULT_TRAIN_FILE)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)

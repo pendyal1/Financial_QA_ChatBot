@@ -1,449 +1,175 @@
 # FinRAG
-### Financial Retrieval-Augmented Generation with Hallucination Detection
 
-FinRAG is a retrieval-augmented question answering system designed for financial documents.  
-The system allows users to ask natural language questions about financial reports and receive answers that are grounded in verifiable source documents with citations.
+Financial QA over SEC filings, with live EDGAR retrieval, citation-grounded answers, and hallucination checks.
 
-Large language models are powerful for natural language understanding, but they often generate responses that are not supported by reliable sources. In financial contexts, unsupported claims can lead to incorrect interpretations of financial data.
+## Current Architecture
 
-FinRAG addresses this challenge by combining:
+The repo now uses a different architecture than the original static-index prototype.
 
-- Retrieval-Augmented Generation (RAG)
-- Domain-specific fine-tuning on financial QA datasets
-- Hallucination detection and citation verification
+- Retrieval corpus: live SEC EDGAR APIs at question time
+- Numeric facts: SEC `companyfacts` API when the question is financial-statement oriented
+- Dense retrieval: sentence-transformer embeddings over freshly pulled filing chunks
+- Reranking: `BAAI/bge-reranker-v2-m3`
+- Generator: `Qwen/Qwen2.5-7B-Instruct`
+- Fine-tuning: QLoRA on a curated training mix
+- Local app: Streamlit on CPU
+- Remote generation: Colab GPU endpoint
 
-The result is a system that produces answers grounded in financial evidence while identifying when the model may be generating unsupported claims.
+The interactive app no longer accepts uploaded files. It expects the user to mention a public company name or ticker in the question, then it pulls the relevant filing material directly from the SEC.
 
----
+## Project Direction
 
-# Project Objectives
+FinRAG is meant to act like a research assistant for financial analysts:
 
-The main goals of FinRAG are:
+- pull relevant SEC filings
+- answer questions with evidence-backed citations
+- expose the retrieved evidence
+- flag weakly supported answers
 
-- Build a retrieval-augmented generation pipeline for financial question answering
-- Generate answers grounded in financial documents with source citations
-- Detect hallucinated or unsupported claims in model outputs
-- Evaluate whether retrieval and domain-specific training improve answer reliability
+Primary evaluation target:
 
-The project explores the following research questions:
+- FinanceBench
 
-1. Does retrieval-augmented generation improve answer accuracy compared to a baseline language model?
-2. Can hallucination detection methods identify unsupported claims in generated responses?
-3. Does fine-tuning on financial question answering datasets improve financial reasoning performance?
+Secondary reasoning datasets:
 
----
+- FinQA
+- ConvFinQA
+- TAT-QA
 
-# Current Project Direction
+## Data Sources
 
-FinRAG is a research assistant for financial analysts who need to query real SEC filings and receive evidence-backed answers.
+Training and evaluation data:
 
-The practical target is:
+- FinQA: https://huggingface.co/datasets/ibm-research/finqa
+- ConvFinQA: https://huggingface.co/datasets/AdaptLLM/ConvFinQA
+- FinanceBench: https://huggingface.co/datasets/PatronusAI/financebench
+- TAT-QA: https://github.com/NExTplusplus/TAT-QA
 
-- Use SEC EDGAR filings as the retrieval corpus for the interactive demo.
-- Use FinanceBench as the primary Q&A evaluation benchmark because it includes realistic financial analyst questions, gold answers, and citation evidence.
-- Use FinQA and TAT-QA as secondary numerical reasoning benchmarks.
-- Use Qwen 2.5 7B as the generation model, served from a Colab GPU, while Streamlit and retrieval run locally on CPU.
+Live retrieval APIs:
 
-The system should answer factual lookup, comparative, numerical reasoning, and risk/context questions grounded in filings. It should not try to answer real-time stock-price questions, forecasting questions, or unsupported multi-turn speculation.
+- SEC EDGAR API overview: https://www.sec.gov/search-filings/edgar-application-programming-interfaces
+- Company submissions: `https://data.sec.gov/submissions/CIK##########.json`
+- Company facts: `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`
 
----
+## Repo Structure
 
-# System Architecture
+Key modules:
 
-FinRAG consists of three major components.
+- `src/finrag/sec_live.py`: live SEC company resolution, submissions fetch, companyfacts fetch, chunking, and retrieval
+- `src/finrag/rerank.py`: cross-encoder reranking with `BAAI/bge-reranker-v2-m3`
+- `src/finrag/answer.py`: extractive fallback, answer assembly, hallucination verification
+- `src/finrag/remote_qwen.py`: local client for the Colab Qwen endpoint
+- `src/finrag/qwen_server.py`: FastAPI GPU generation server
+- `src/finrag/fine_tuning.py`: curated fine-tuning mixture builder
+- `src/finrag/train_qlora.py`: QLoRA fine-tuning entrypoint
+- `src/finrag/benchmarks.py`: benchmark preparation helpers
+- `src/finrag/evaluate_benchmark.py`: benchmark evaluation with gold evidence
+- `demo/app.py`: local Streamlit UI
 
-## 1. Retrieval-Augmented Generation (RAG)
-
-Financial documents are segmented into smaller passages and stored in a vector database.  
-When a user submits a question, the system retrieves the most relevant passages and provides them as context to the language model.
-
-Pipeline:
-
-```
-
-Financial Documents
-↓
-Document Chunking
-↓
-Embedding Model
-↓
-Vector Database
-↓
-Retriever
-↓
-Language Model
-↓
-Answer + Citations
-
-```
-
----
-
-## 2. Hallucination Detection Layer
-
-The hallucination detection module evaluates whether the generated answer is supported by the retrieved evidence.
-
-This component performs:
-
-- citation verification  
-- evidence comparison  
-- confidence scoring  
-- unsupported claim detection  
-
-Example Output:
-
-```
-
-Answer: Tesla reported supply chain risks in its 2023 10-K filing.
-
-Source: Tesla 10-K 2023 – Risk Factors Section
-
-Confidence Score: 0.91
-Hallucination Risk: Low
-
-```
-
----
-
-## 3. Domain-Specific Fine-Tuning
-
-To improve financial reasoning capabilities, a base language model is fine-tuned on financial question answering datasets.
-
-Fine-tuning helps the model better understand:
-
-- financial terminology
-- numerical reasoning
-- financial document structures
-
----
-
-# Data Sources
-
-The project relies on publicly available financial datasets.
-
-### Financial Question Answering Datasets
-
-FinQA  
-https://huggingface.co/datasets/ibm-research/finqa
-
-TAT-QA  
-https://github.com/NExTplusplus/TAT-QA
-
-FinanceBench  
-https://github.com/patronus-ai/financebench
-
-Financial QA Benchmark  
-https://www.kaggle.com/datasets/yousefsaeedian/a-new-benchmark-for-financial-question-answering
-
-### Financial Document Corpora
-
-SEC EDGAR Company Facts Dataset  
-https://www.kaggle.com/datasets/jamesglang/sec-edgar-company-facts-september2023
-
-SEC Financial Statement Data Sets  
-https://www.sec.gov/data-research/sec-markets-data/financial-statement-data-sets
-
-These datasets provide financial reports, financial tables, and question-answer pairs that support both training and evaluation of financial question answering systems.
-
----
-
-# Evaluation
-
-FinRAG will be evaluated using both quantitative and qualitative metrics.
-
-## Quantitative Metrics
-
-- Answer accuracy
-- Citation correctness
-- Retrieval relevance
-- Hallucination detection accuracy
-
-## Experimental Comparisons
-
-The following systems will be compared:
-
-1. Qwen 2.5 7B without retrieval
-2. Retrieval-Augmented Generation with SEC filing evidence
-3. RAG + Qwen 2.5 7B LoRA fine-tuned on financial QA data
-4. RAG + citation verification and hallucination detection
-
-Primary benchmark:
-
-- FinanceBench: answer quality, citation correctness, and evidence support.
-
-Secondary benchmarks:
-
-- FinQA: numerical reasoning over financial reports.
-- TAT-QA: hybrid table-and-text financial reasoning.
-
----
-
-# Expected Outcomes
-
-This project aims to produce:
-
-- A working financial RAG system
-- A hallucination detection framework
-- Experimental evaluation results
-- An interactive demo for financial question answering
-- A reproducible research repository
-
----
-
-# Project Structure
-
-Example repository structure:
-
-```
-
-FinRAG/
-│
-├── data/
-│   ├── raw_documents/
-│   ├── processed_chunks/
-│
-├── src/
-│   ├── retrieval/
-│   ├── rag_pipeline/
-│   ├── hallucination_detection/
-│   ├── fine_tuning/
-│
-├── notebooks/
-│   ├── data_exploration.ipynb
-│   ├── model_evaluation.ipynb
-│
-├── demo/
-│   └── app.py
-│
-├── requirements.txt
-└── README.md
-
-````
-
----
-
-# Setup
+## Local Setup
 
 Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-````
-
-Example dependencies:
-
-```
-transformers
-langchain
-faiss-cpu
-sentence-transformers
-datasets
-pandas
-numpy
 ```
 
----
-
-# Reproducible Commands
-
-Run all commands from the repository root.
-
-Prepare the SEC demo corpus:
+Run everything from the repo root:
 
 ```bash
 export PYTHONPATH=src
-python -m finrag.download_sec_filings
-python -m finrag.chunk_documents
-python -m finrag.build_index
 ```
 
-Prepare benchmark data:
+## Streamlit Demo
+
+Start the local app:
 
 ```bash
-export PYTHONPATH=src
-python -m finrag.benchmarks financebench
-python -m finrag.benchmarks tatqa --split dev
-python -m finrag.fine_tuning --output-path data/fine_tuning/finqa_train.jsonl --limit 2000
-```
-
-Run benchmark evaluation with gold evidence:
-
-```bash
-export PYTHONPATH=src
-python -m finrag.evaluate_benchmark --input-csv data/evaluation/financebench_eval.csv --backend extractive
-python -m finrag.evaluate_benchmark --input-csv data/evaluation/financebench_eval.csv --backend remote-qwen --endpoint https://YOUR-NGROK-URL.ngrok-free.dev
-```
-
-Run the local Streamlit app on CPU:
-
-```bash
-export PYTHONPATH=src
 streamlit run demo/app.py
 ```
 
-The app supports two modes:
+The app asks for:
 
-- `Indexed SEC corpus`: retrieve over the FAISS index built from downloaded SEC filings.
-- `Uploaded SEC filing`: upload one HTML, XML, TXT, or PDF SEC filing and ask questions only about that document, without rebuilding the repo index.
+- a financial question
+- retrieved chunk count
+- either:
+  - `Colab GPU Qwen endpoint`, or
+  - `Debug extractive fallback`
 
-Train Qwen 2.5 7B LoRA in Colab:
+Example questions:
+
+```text
+What risks did Apple report related to supply chains?
+What does Microsoft report about AI-related risks?
+What revenue did Amazon report?
+What cybersecurity risks does Microsoft describe?
+```
+
+Important constraint:
+
+- mention a public company or ticker in the question
+
+## Live Retrieval Flow
+
+For each question, the app:
+
+1. resolves the company from the question
+2. fetches the latest relevant SEC filings from EDGAR
+3. fetches SEC `companyfacts` for numeric questions
+4. chunks filing text
+5. runs dense retrieval
+6. reranks with `BAAI/bge-reranker-v2-m3`
+7. sends retrieved evidence to either:
+   - the local extractive fallback, or
+   - the Colab Qwen endpoint
+8. verifies citations and assigns hallucination risk
+
+## Build The Curated Training Mix
+
+Prepare the multi-dataset fine-tuning file:
+
+```bash
+PYTHONPATH=src python -m finrag.fine_tuning
+```
+
+This writes:
+
+- `data/fine_tuning/financial_qa_mix_train.jsonl`
+- `data/fine_tuning/financial_qa_mix_manifest.json`
+
+Optional dataset limits:
+
+```bash
+PYTHONPATH=src python -m finrag.fine_tuning \
+  --finqa-limit 3000 \
+  --convfinqa-limit 6000 \
+  --tatqa-limit 4000
+```
+
+## QLoRA Training On Colab
+
+Use a CUDA-backed Google Colab runtime.
+
+Install the Colab stack:
 
 ```bash
 %cd /content/gdrive/MyDrive/project_folder/Financial_QA_ChatBot
 !bash scripts/colab_setup.sh
-!PYTHONPATH=src python -m finrag.train_qlora \
-  --model-name Qwen/Qwen2.5-7B-Instruct \
-  --train-file data/fine_tuning/finqa_train.jsonl \
-  --output-dir /content/gdrive/MyDrive/finrag-adapters/qwen2_5_7b_finqa_lora \
-  --epochs 1 \
-  --max-length 1536 \
-  --batch-size 1 \
-  --gradient-accumulation-steps 16 \
-  --learning-rate 2e-4 \
-  --lora-r 16 \
-  --lora-alpha 32
 ```
 
-Serve Qwen from Colab and paste the public URL into Streamlit:
+Build the curated training file in Colab:
 
 ```bash
-!bash scripts/colab_start_qwen_server.sh
-```
-
-Then, in another Colab cell:
-
-```python
-import os
-os.environ["NGROK_AUTHTOKEN"] = "PASTE_YOUR_NGROK_TOKEN_HERE"
-%run scripts/colab_start_ngrok.py
-```
-
-## Current MVP Quickstart
-
-The repository now includes a working baseline RAG pipeline:
-
-1. Download latest SEC 10-K filings for the starter company set.
-
-```bash
-PYTHONPATH=src python -m finrag.download_sec_filings --tickers AAPL MSFT TSLA NVDA AMZN
-```
-
-2. Split the filings into retrievable chunks.
-
-```bash
-PYTHONPATH=src python -m finrag.chunk_documents
-```
-
-3. Build a FAISS vector index.
-
-```bash
-PYTHONPATH=src python -m finrag.build_index
-```
-
-4. Ask a question with the local debug extractor.
-
-```bash
-PYTHONPATH=src python -m finrag.answer "What risks did Apple report related to supply chains?"
-```
-
-For the project model path, run Qwen 2.5 7B on a Colab GPU server and call it from the local app. Do not load Qwen 7B directly from local Streamlit on a CPU-only Mac.
-
-5. Run the starter evaluation set.
-
-```bash
-PYTHONPATH=src python -m finrag.evaluate
-```
-
-6. Launch the interactive demo locally on CPU.
-
-```bash
-PYTHONPATH=src streamlit run demo/app.py
-```
-
-Paste the Colab Qwen endpoint URL into the app if you want Qwen generation. The local app performs retrieval and citation verification; the Colab GPU endpoint performs Qwen generation. The local extractor is only a debug path for checking retrieval and citations without the Colab endpoint.
-
-If you only want to analyze one filing, switch the app to `Uploaded SEC filing`, upload the document, and ask questions on that single file.
-
-### Downloaded Starter Data
-
-The current local data pull uses SEC 10-K filings for:
-
-- Apple: filed 2025-10-31
-- Microsoft: filed 2025-07-30
-- Tesla: filed 2026-01-29
-- NVIDIA: filed 2026-02-25
-- Amazon: filed 2026-02-06
-
-Generated data artifacts live under `data/raw_documents/`, `data/processed_chunks/`, `data/index/`, and `data/fine_tuning/`. These are ignored by git because they are reproducible.
-
-### Implementation Modules
-
-- `src/finrag/download_sec_filings.py`: downloads SEC filings and extracts text
-- `src/finrag/chunk_documents.py`: creates chunk-level JSONL
-- `src/finrag/build_index.py`: embeds chunks and writes the FAISS index
-- `src/finrag/retrieve.py`: retrieves relevant chunks for a query
-- `src/finrag/answer.py`: generates cited answers using retrieval evidence
-- `src/finrag/hallucination_detection.py`: checks citation validity and support
-- `src/finrag/query.py`: detects company intent and risk questions so retrieval stays on the requested filing
-- `src/finrag/evaluate.py`: runs the starter evaluation CSV
-- `src/finrag/fine_tuning.py`: prepares a small FinQA JSONL file for later fine-tuning experiments
-- `src/finrag/train_qlora.py`: QLoRA fine-tunes a 7B Hugging Face model on a CUDA GPU
-- `src/finrag/hf_adapter_answer.py`: answers RAG questions with a saved Hugging Face LoRA adapter
-- `src/finrag/qwen_server.py`: serves Qwen 2.5 7B from Colab GPU over HTTP
-- `src/finrag/remote_qwen.py`: local CPU client that sends retrieved evidence to the Colab Qwen server
-- `demo/app.py`: Streamlit demo
-
-## 7B QLoRA Fine-Tuning On Google Colab
-
-The recommended training route is QLoRA, not full fine-tuning. QLoRA loads the 7B model in 4-bit precision and trains only LoRA adapter weights, which is appropriate for Colab Pro GPUs.
-
-Default base model:
-
-```text
-Qwen/Qwen2.5-7B-Instruct
-```
-
-This is a public 7B instruct model on Hugging Face. No Hugging Face Inference API is required. A Hugging Face token is only needed if your environment needs authenticated downloads, if you choose a gated model, or if you want to push the adapter back to the Hub.
-
-### Colab Setup
-
-Use a CUDA-backed Colab runtime, then run:
-
-```bash
-pip install -r requirements-colab.txt
-```
-
-Do not use `--force-reinstall` on Colab. It can replace Colab's CUDA/PyTorch packages and produce CUDA toolkit conflicts. If you already ran a force reinstall, restart the Colab runtime before continuing.
-
-Verify the runtime:
-
-```bash
-python - <<'PY'
-import torch, transformers, peft, accelerate, bitsandbytes
-print("torch", torch.__version__)
-print("cuda", torch.cuda.is_available(), torch.cuda.get_device_name(0))
-print("transformers", transformers.__version__)
-print("peft", peft.__version__)
-print("accelerate", accelerate.__version__)
-print("bitsandbytes", bitsandbytes.__version__)
-from transformers import PreTrainedModel
-print("PreTrainedModel import OK")
-PY
-```
-
-Prepare more FinQA examples:
-
-```bash
-PYTHONPATH=src python -m finrag.fine_tuning --limit 2000
+!PYTHONPATH=src python -m finrag.fine_tuning
 ```
 
 Train the LoRA adapter:
 
 ```bash
-PYTHONPATH=src python -m finrag.train_qlora \
+!PYTHONPATH=src python -m finrag.train_qlora \
   --model-name Qwen/Qwen2.5-7B-Instruct \
-  --train-file data/fine_tuning/finqa_train.jsonl \
-  --output-dir /content/drive/MyDrive/finrag-adapters/qwen2_5_7b_finqa_lora \
+  --train-file data/fine_tuning/financial_qa_mix_train.jsonl \
+  --output-dir /content/gdrive/MyDrive/finrag-adapters/qwen2_5_7b_financial_qa_lora \
   --epochs 1 \
   --max-length 1536 \
   --batch-size 1 \
@@ -453,31 +179,31 @@ PYTHONPATH=src python -m finrag.train_qlora \
   --lora-alpha 32
 ```
 
-Start a Qwen generation server on the Colab GPU. It will use the saved LoRA adapter if that adapter directory exists; otherwise omit `--adapter-path` to serve the base model.
+The default training script now expects:
+
+- base model: `Qwen/Qwen2.5-7B-Instruct`
+- train file: `data/fine_tuning/financial_qa_mix_train.jsonl`
+
+## Serve Qwen From Colab
+
+Start the GPU server:
 
 ```bash
-bash scripts/colab_start_qwen_server.sh
+!bash scripts/colab_start_qwen_server.sh
 ```
 
-Do not start the public tunnel until this command prints a healthy `/health` response.
+The server launcher now defaults to:
 
-Expose the Colab server with Cloudflare Tunnel:
+- model: `Qwen/Qwen2.5-7B-Instruct`
+- adapter: `/content/gdrive/MyDrive/finrag-adapters/qwen2_5_7b_financial_qa_lora`
+
+Verify the server:
 
 ```bash
-wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
-chmod +x cloudflared
-./cloudflared tunnel --url http://127.0.0.1:8000
+!curl -s http://127.0.0.1:8000/health
 ```
 
-Copy the printed `https://...trycloudflare.com` URL.
-
-If Cloudflare Quick Tunnel returns a 500 error, use ngrok instead:
-
-```bash
-pip install pyngrok
-```
-
-Then in a Colab Python cell, keeping the cell running:
+Expose it publicly with ngrok:
 
 ```python
 import os
@@ -485,53 +211,49 @@ os.environ["NGROK_AUTHTOKEN"] = "PASTE_YOUR_NGROK_AUTH_TOKEN"
 %run scripts/colab_start_ngrok.py
 ```
 
-Copy the printed `https://...ngrok-free.app` URL.
+Paste the printed `https://...ngrok-free.app` URL into the Streamlit app.
 
-Then run Streamlit locally on your Mac:
+## Benchmark Preparation
+
+Prepare benchmark CSV files:
 
 ```bash
-PYTHONPATH=src streamlit run demo/app.py
+PYTHONPATH=src python -m finrag.benchmarks financebench
+PYTHONPATH=src python -m finrag.benchmarks tatqa --split dev
 ```
 
-Choose `Colab GPU Qwen endpoint` in the app and paste the Cloudflare or ngrok URL.
+Run FinanceBench evaluation:
 
-There is also a Colab notebook wrapper at `notebooks/finetune_qwen7b_colab.ipynb` with cells for training, starting the Qwen server, and creating the tunnel.
-
-### GPU Notes
-
-The training script and Qwen server intentionally exit if CUDA is unavailable. If you run them in a local macOS terminal, they will fail with a GPU error. Run those commands from an actual Colab GPU runtime or a VS Code terminal attached to that runtime. Run only Streamlit locally on CPU.
-
----
-
-# Example Usage
-
-Example query:
-
-```
-What risks did Apple report in its most recent 10-K filing?
+```bash
+PYTHONPATH=src python -m finrag.evaluate_benchmark \
+  --input-csv data/evaluation/financebench_eval.csv \
+  --backend extractive
 ```
 
-Example output:
+Or evaluate through the remote Qwen endpoint:
 
-```
-Answer:
-Apple identified supply chain disruptions and foreign exchange fluctuations as potential risks.
-
-Source:
-Apple 10-K 2023 – Risk Factors Section
-
-Confidence Score: 0.88
-Hallucination Risk: Low
+```bash
+PYTHONPATH=src python -m finrag.evaluate_benchmark \
+  --input-csv data/evaluation/financebench_eval.csv \
+  --backend remote-qwen \
+  --endpoint https://YOUR-NGROK-URL.ngrok-free.app
 ```
 
----
+## What Changed
 
-# Disclaimer
+Compared with the earlier prototype, this repo now:
 
-This project relies on publicly available financial datasets. Data accessibility, quality, or preprocessing challenges may affect dataset usability. If limitations arise, the project scope may shift toward alternative financial text corpora or focus more heavily on evaluating retrieval and hallucination detection methods using available datasets.
+- removes the upload workflow from the UI
+- removes reliance on the local FAISS index for the interactive app
+- pulls SEC filings live from EDGAR
+- consults `companyfacts` for numeric questions
+- uses Qwen 2.5 7B as the generator default
+- replaces FinQA-only fine-tuning prep with a curated FinQA + ConvFinQA + TAT-QA mixture
+- adds a stronger reranker
 
----
+## Current Limits
 
-# License
-
-This project is intended for academic and research purposes.
+- best on single-company questions
+- not for real-time stock prices
+- not for forecasting or investment advice
+- not yet optimized for long multi-company comparisons in a single query

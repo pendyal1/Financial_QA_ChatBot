@@ -7,8 +7,7 @@ from pathlib import Path
 from finrag.answer import SYSTEM_PROMPT, build_context, print_response
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse
-from finrag.query import analyze_query
-from finrag.retrieve import Retriever
+from finrag.sec_live import retrieve_live_sec
 
 
 DEFAULT_BASE_MODEL = os.getenv("HF_BASE_MODEL", "Qwen/Qwen2.5-7B-Instruct")
@@ -34,10 +33,8 @@ def generate_adapter_answer(
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-    intent = analyze_query(question)
-    retriever = Retriever()
-    retrieved = retriever.search(question, top_k=top_k, allowed_tickers=intent.tickers or None)
-    context = build_context(retrieved)
+    company, retrieved = retrieve_live_sec(question, top_k=top_k)
+    context = build_context(retrieved, question=question)
 
     tokenizer_path = adapter_path if adapter_path and adapter_path.exists() else model_name
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=trust_remote_code)
@@ -86,7 +83,7 @@ def generate_adapter_answer(
     generated = output[0][inputs["input_ids"].shape[-1] :]
     answer = tokenizer.decode(generated, skip_special_tokens=True).strip()
     citations = extract_citations(answer)
-    verification = verify_answer(answer, retrieved, expected_tickers=intent.tickers or None)
+    verification = verify_answer(answer, retrieved, expected_tickers=[company.ticker])
     return RAGResponse(
         question=question,
         answer=answer,

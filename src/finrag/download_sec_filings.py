@@ -128,55 +128,6 @@ def download_latest_10k(ticker: str, cik: str, user_agent: str, output_dir: Path
     return text_path
 
 
-def fetch_latest_filing(
-    ticker: str,
-    form: str,
-    user_agent: str = DEFAULT_SEC_USER_AGENT,
-) -> tuple[str, dict[str, str]]:
-    """Download the latest SEC filing for a ticker/form pair and return (text, metadata).
-
-    Supports any form type recognised by SEC EDGAR (10-K, 10-Q, 8-K, …).
-    Nothing is written to disk; the caller receives the plain text and a
-    metadata dict with the same keys used by the on-disk JSON files so the
-    result can be fed directly into MultiDocIndex.
-    """
-    ticker = ticker.upper()
-    mapping = ticker_to_cik(user_agent)
-    if ticker not in mapping:
-        raise ValueError(f"Ticker '{ticker}' not found in the SEC company_tickers.json index.")
-
-    cik = mapping[ticker]
-    submissions = get_json(f"{SEC_DATA_BASE}/submissions/CIK{cik}.json", user_agent)
-    filing = latest_filing(submissions, form)
-
-    accession_path = filing["accession_no"].replace("-", "")
-    cik_int = str(int(cik))
-    doc_url = (
-        f"{SEC_BASE}/Archives/edgar/data/{cik_int}/"
-        f"{accession_path}/{filing['primary_document']}"
-    )
-
-    raw_html = get_text(doc_url, user_agent)
-    text = html_to_text(raw_html)
-
-    company = submissions.get("name", ticker)
-    doc_id = f"{ticker}_{filing['filing_date']}_{filing['form']}"
-    metadata: dict[str, str] = {
-        "doc_id": doc_id,
-        "ticker": ticker,
-        "company": company,
-        "cik": cik,
-        "form": filing["form"],
-        "filing_date": filing["filing_date"],
-        "report_date": filing.get("report_date", ""),
-        "accession_no": filing["accession_no"],
-        "primary_document": filing["primary_document"],
-        "source_url": doc_url,
-        "source": f"{company} {filing['form']} filed {filing['filing_date']}",
-    }
-    return text, metadata
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download latest SEC 10-K filings.")
     parser.add_argument(
