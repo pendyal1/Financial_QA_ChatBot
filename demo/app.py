@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from finrag.hallucination import detect_hallucinations  # noqa: E402
-from finrag.remote_qwen import DEFAULT_QWEN_ENDPOINT, endpoint_generate  # noqa: E402
+from finrag.remote_qwen import DEFAULT_QWEN_ENDPOINT, endpoint_generate, endpoint_hallucinate  # noqa: E402
 from finrag.answer import build_context, extractive_answer, is_low_content_answer  # noqa: E402
 from finrag.sec_live import live_retrieve  # noqa: E402
 from finrag.rerank import rerank  # noqa: E402
@@ -29,9 +29,10 @@ with st.sidebar:
     top_k = st.slider("Retrieved chunks", min_value=3, max_value=15, value=8)
     use_reranker = st.toggle("Rerank results", value=False,
                              help="Uses BAAI/bge-reranker-v2-m3 to improve passage ordering.")
-    use_hd = st.toggle("Hallucination detection", value=False,
+    use_hd = st.toggle("Hallucination detection", value=True,
                        help="Checks each claim in the answer against retrieved evidence. "
-                            "Loads a 450 MB NLI model on first use.")
+                            "Runs on the Colab server when an endpoint URL is set; "
+                            "falls back to local NLI model otherwise.")
     backend = st.selectbox(
         "Answer backend",
         options=["Colab GPU Qwen endpoint", "Extractive fallback (no GPU needed)"],
@@ -107,9 +108,12 @@ if st.button("Ask", type="primary") and question.strip():
     if use_hd:
         with st.spinner("Checking for hallucinations..."):
             try:
-                report = detect_hallucinations(answer, results)
-            except Exception:
-                pass
+                if endpoint.strip():
+                    report = endpoint_hallucinate(endpoint, answer, results)
+                else:
+                    report = detect_hallucinations(answer, results)
+            except Exception as e:
+                st.warning(f"Hallucination detection skipped: {e}")
 
     # ── Display results ────────────────────────────────────────────────────
     st.subheader("Answer")

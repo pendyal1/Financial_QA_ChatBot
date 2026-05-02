@@ -27,6 +27,40 @@ class GenerateResponse(BaseModel):
     answer: str
 
 
+class PassageItem(BaseModel):
+    chunk_id: str
+    score: float
+    ticker: str
+    company: str
+    source: str
+    source_url: str
+    text: str
+
+
+class HallucinateRequest(BaseModel):
+    answer: str
+    passages: list[PassageItem]
+
+
+class ClaimItem(BaseModel):
+    claim_text: str
+    sentence_index: int
+    is_numerical: bool
+    label: str
+    confidence: float
+    supporting_chunk_ids: list[str]
+    evidence_snippet: str
+
+
+class HallucinateResponse(BaseModel):
+    overall_risk: str
+    confidence_score: float
+    grounded_count: int
+    partial_count: int
+    unsupported_count: int
+    claims: list[ClaimItem]
+
+
 def require_cuda() -> None:
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA GPU not found. Run this server in a Colab GPU runtime.")
@@ -129,6 +163,44 @@ def create_app(model_name: str, adapter_path: str | None, trust_remote_code: boo
         generated = output[0][inputs["input_ids"].shape[-1] :]
         answer = clean_generation(tokenizer.decode(generated, skip_special_tokens=True))
         return GenerateResponse(answer=answer)
+
+    @app.post("/hallucinate", response_model=HallucinateResponse)
+    def hallucinate(request: HallucinateRequest) -> HallucinateResponse:
+        from finrag.hallucination import detect_hallucinations
+        from finrag.models import RetrievalResult
+
+        retrieved = [
+            RetrievalResult(
+                chunk_id=p.chunk_id,
+                score=p.score,
+                ticker=p.ticker,
+                company=p.company,
+                source=p.source,
+                source_url=p.source_url,
+                text=p.text,
+            )
+            for p in request.passages
+        ]
+        report = detect_hallucinations(request.answer, retrieved)
+        return HallucinateResponse(
+            overall_risk=report.overall_risk,
+            confidence_score=report.confidence_score,
+            grounded_count=report.grounded_count,
+            partial_count=report.partial_count,
+            unsupported_count=report.unsupported_count,
+            claims=[
+                ClaimItem(
+                    claim_text=cv.claim.text,
+                    sentence_index=cv.claim.sentence_index,
+                    is_numerical=cv.claim.is_numerical,
+                    label=cv.label,
+                    confidence=cv.confidence,
+                    supporting_chunk_ids=cv.supporting_chunk_ids,
+                    evidence_snippet=cv.evidence_snippet,
+                )
+                for cv in report.claims
+            ],
+        )
 
     return app
 

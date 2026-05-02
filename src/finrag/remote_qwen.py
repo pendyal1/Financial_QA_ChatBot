@@ -7,7 +7,7 @@ import requests
 
 from finrag.answer import build_context, extractive_answer, is_low_content_answer
 from finrag.hallucination_detection import extract_citations, verify_answer
-from finrag.models import RAGResponse, RetrievalResult
+from finrag.models import Claim, ClaimVerification, HallucinationReport, RAGResponse, RetrievalResult
 from finrag.query import analyze_query
 from finrag.retrieve import Retriever
 
@@ -39,6 +39,64 @@ def endpoint_generate(
     response.raise_for_status()
     data = response.json()
     return str(data["answer"]).strip()
+
+
+def endpoint_hallucinate(
+    endpoint: str,
+    answer: str,
+    retrieved: list[RetrievalResult],
+    timeout: int = 120,
+) -> HallucinationReport:
+    """Call the /hallucinate endpoint on the Colab server and return a HallucinationReport."""
+    if not endpoint:
+        raise ValueError("Missing Colab Qwen endpoint URL.")
+
+    payload: dict[str, Any] = {
+        "answer": answer,
+        "passages": [
+            {
+                "chunk_id": r.chunk_id,
+                "score": r.score,
+                "ticker": r.ticker,
+                "company": r.company,
+                "source": r.source,
+                "source_url": r.source_url,
+                "text": r.text,
+            }
+            for r in retrieved
+        ],
+    }
+    response = requests.post(
+        f"{endpoint.rstrip('/')}/hallucinate",
+        json=payload,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    claims = [
+        ClaimVerification(
+            claim=Claim(
+                text=c["claim_text"],
+                sentence_index=c["sentence_index"],
+                is_numerical=c["is_numerical"],
+            ),
+            label=c["label"],
+            confidence=c["confidence"],
+            supporting_chunk_ids=c["supporting_chunk_ids"],
+            evidence_snippet=c["evidence_snippet"],
+        )
+        for c in data["claims"]
+    ]
+    return HallucinationReport(
+        answer=answer,
+        claims=claims,
+        overall_risk=data["overall_risk"],
+        confidence_score=data["confidence_score"],
+        grounded_count=data["grounded_count"],
+        partial_count=data["partial_count"],
+        unsupported_count=data["unsupported_count"],
+    )
 
 
 def answer_with_remote_qwen(
