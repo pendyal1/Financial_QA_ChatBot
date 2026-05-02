@@ -29,8 +29,9 @@ with st.sidebar:
     top_k = st.slider("Retrieved chunks", min_value=3, max_value=15, value=8)
     use_reranker = st.toggle("Rerank results", value=False,
                              help="Uses BAAI/bge-reranker-v2-m3 to improve passage ordering.")
-    use_hd = st.toggle("Hallucination detection", value=True,
-                       help="Checks each claim in the answer against retrieved evidence.")
+    use_hd = st.toggle("Hallucination detection", value=False,
+                       help="Checks each claim in the answer against retrieved evidence. "
+                            "Loads a 450 MB NLI model on first use.")
     backend = st.selectbox(
         "Answer backend",
         options=["Colab GPU Qwen endpoint", "Extractive fallback (no GPU needed)"],

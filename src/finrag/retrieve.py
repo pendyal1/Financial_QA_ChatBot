@@ -18,6 +18,8 @@ from finrag.models import RetrievalResult
 from finrag.query import analyze_query, evidence_for_question
 
 
+MIN_SIMILARITY = 0.10  # discard chunks below this dense cosine score (teammate idea)
+
 STOPWORDS = {
     "a",
     "about",
@@ -96,8 +98,42 @@ class Retriever:
         top_k: int = 5,
         allowed_tickers: list[str] | None = None,
     ) -> list[RetrievalResult]:
+        """
+        Retrieve top-k passages for a question.
+
+        For multi-part questions ("What was revenue and how did margins change?"),
+        each sub-query is searched independently and results are merged, keeping
+        the highest score per chunk. Sub-query decomposition is from teammate's code.
+        """
         intent = analyze_query(question)
         tickers = allowed_tickers if allowed_tickers is not None else intent.tickers
+
+        sub_queries = intent.sub_queries or [question]
+        if len(sub_queries) == 1:
+            return self._search_single(question, intent, tickers, top_k)
+
+        # Multi-part: search each sub-query, merge by chunk_id (keep best score)
+        merged: dict[str, tuple[float, RetrievalResult]] = {}
+        for sub_q in sub_queries:
+            sub_intent = analyze_query(sub_q)
+            for result in self._search_single(sub_q, sub_intent, tickers, top_k):
+                existing = merged.get(result.chunk_id)
+                if existing is None or result.score > existing[0]:
+                    merged[result.chunk_id] = (result.score, result)
+
+        ranked = sorted(merged.values(), key=lambda x: x[0], reverse=True)
+        results = [r for _, r in ranked[:top_k]]
+        if not results and tickers:
+            raise ValueError(f"No retrieved chunks matched ticker filter: {', '.join(tickers)}")
+        return results
+
+    def _search_single(
+        self,
+        question: str,
+        intent,
+        tickers: list[str],
+        top_k: int,
+    ) -> list[RetrievalResult]:
         query_text = intent.expanded_question
         query = self.model.encode(
             [query_text],
@@ -112,52 +148,47 @@ class Retriever:
         for score, idx in zip(scores[0], indices[0]):
             if idx < 0:
                 continue
+            dense = float(score)
+            if dense < MIN_SIMILARITY:  # discard clearly irrelevant chunks
+                continue
             chunk = self.chunks[int(idx)]
             if tickers and chunk["ticker"] not in tickers:
                 continue
-            dense = float(score)
-            rerank = dense + (0.12 * lexical_score(question, chunk["text"]))
+            combined = dense + (0.12 * lexical_score(question, chunk["text"]))
             if intent.is_risk_question:
-                rerank += 0.28 * risk_score(chunk["text"])
-            result = RetrievalResult(
+                combined += 0.28 * risk_score(chunk["text"])
+            candidates.append((combined, RetrievalResult(
                 chunk_id=chunk["chunk_id"],
-                score=float(rerank),
+                score=float(combined),
                 ticker=chunk["ticker"],
                 company=chunk["company"],
                 source=chunk["source"],
                 source_url=chunk["source_url"],
                 text=chunk["text"],
-            )
-            candidates.append((rerank, result))
+            )))
 
         if len(candidates) < top_k and tickers:
-            seen_ids = {result.chunk_id for _, result in candidates}
+            seen_ids = {r.chunk_id for _, r in candidates}
             for chunk in self.chunks:
                 if chunk["ticker"] not in tickers or chunk["chunk_id"] in seen_ids:
                     continue
-                rerank = 0.12 * lexical_score(question, chunk["text"])
+                combined = 0.12 * lexical_score(question, chunk["text"])
                 if intent.is_risk_question:
-                    rerank += 0.28 * risk_score(chunk["text"])
-                if rerank <= 0:
+                    combined += 0.28 * risk_score(chunk["text"])
+                if combined <= 0:
                     continue
-                candidates.append(
-                    (
-                        rerank,
-                        RetrievalResult(
-                            chunk_id=chunk["chunk_id"],
-                            score=float(rerank),
-                            ticker=chunk["ticker"],
-                            company=chunk["company"],
-                            source=chunk["source"],
-                            source_url=chunk["source_url"],
-                            text=chunk["text"],
-                        ),
-                    )
-                )
+                candidates.append((combined, RetrievalResult(
+                    chunk_id=chunk["chunk_id"],
+                    score=float(combined),
+                    ticker=chunk["ticker"],
+                    company=chunk["company"],
+                    source=chunk["source"],
+                    source_url=chunk["source_url"],
+                    text=chunk["text"],
+                )))
 
         candidates.sort(key=lambda item: item[0], reverse=True)
-        results = [result for _, result in candidates[:top_k]]
-
+        results = [r for _, r in candidates[:top_k]]
         if not results and tickers:
             raise ValueError(f"No retrieved chunks matched ticker filter: {', '.join(tickers)}")
         return results

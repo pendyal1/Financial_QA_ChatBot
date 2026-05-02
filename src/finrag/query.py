@@ -66,6 +66,7 @@ class QueryIntent:
     tickers: list[str]
     is_risk_question: bool
     expanded_question: str
+    sub_queries: list[str] = None  # populated by decompose_query for multi-part questions
 
 
 def detect_tickers(question: str) -> list[str]:
@@ -84,6 +85,35 @@ def is_risk_question(question: str) -> bool:
     return bool(tokens & RISK_TERMS)
 
 
+# Conjunctions that signal a multi-part question worth decomposing.
+_DECOMPOSE_CONJUNCTIONS = [" and how ", " and what ", " and when ", " and why ", " and where "]
+
+
+def decompose_query(question: str) -> list[str]:
+    """
+    Split a multi-part question into sub-queries for independent retrieval.
+    Results from each sub-query are merged (highest score wins per chunk).
+
+    "What was Apple's revenue and how did margins change?"
+    → ["What was Apple's revenue?", "how did margins change?"]
+
+    Returns a single-element list if the question doesn't decompose.
+    Adapted from teammate's original retriever.py.
+    """
+    q_lower = question.lower()
+    for conj in _DECOMPOSE_CONJUNCTIONS:
+        if conj in q_lower:
+            idx = q_lower.index(conj)
+            first = question[:idx].strip()
+            second = question[idx + len(conj):].strip()
+            if first and second:
+                return [
+                    first if first.endswith("?") else first + "?",
+                    second if second.endswith("?") else second + "?",
+                ]
+    return [question]
+
+
 def expand_abbreviations(question: str) -> str:
     """Replace financial abbreviations with their full forms for better retrieval."""
     for abbrev, expansion in ABBREVIATION_EXPANSIONS.items():
@@ -98,10 +128,12 @@ def analyze_query(question: str) -> QueryIntent:
     expanded = expand_abbreviations(question)
     if risk_question:
         expanded = f"{expanded}\n{RISK_EXPANSION}"
+    sub_queries = decompose_query(question)
     return QueryIntent(
         tickers=detect_tickers(question),
         is_risk_question=risk_question,
         expanded_question=expanded,
+        sub_queries=sub_queries,
     )
 
 
