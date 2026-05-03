@@ -118,6 +118,8 @@ def _html_to_text(html: str) -> str:
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
     text = soup.get_text("\n")
+    soup.decompose()  # explicitly free the BS4 DOM — can be 10-20x the HTML size
+    del soup
     text = re.sub(r"\r", "\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
