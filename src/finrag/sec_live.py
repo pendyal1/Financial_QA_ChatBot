@@ -27,12 +27,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
-import numpy as np
 import requests
 from bs4 import BeautifulSoup
-from sentence_transformers import SentenceTransformer
 
-from finrag.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_SEC_USER_AGENT
+from finrag.config import DEFAULT_SEC_USER_AGENT
 from finrag.models import RetrievalResult
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -82,7 +80,6 @@ _XBRL_METRICS: list[tuple[str, list[str], str]] = [
 _ticker_map_cache: dict[str, str] | None = None
 _name_to_ticker_cache: dict[str, str] | None = None
 _ticker_to_name_cache: dict[str, str] | None = None
-_model_cache: SentenceTransformer | None = None
 
 
 # ── SEC request helpers ───────────────────────────────────────────────────────
@@ -369,29 +366,37 @@ def _chunk_text(text: str, ticker: str) -> list[dict[str, Any]]:
     return chunks
 
 
-def _get_model() -> SentenceTransformer:
-    """Lazy-load the embedding model on first use."""
-    global _model_cache
-    if _model_cache is None:
-        _model_cache = SentenceTransformer(DEFAULT_EMBEDDING_MODEL)
-    return _model_cache
-
 
 def _rank_chunks(
     question: str,
     chunks: list[dict[str, Any]],
     top_k: int,
 ) -> list[tuple[dict[str, Any], float]]:
-    model = _get_model()
-    chunks = chunks[:_MAX_CHUNKS_TO_EMBED]
-    texts = [c["text"] for c in chunks]
-    q_emb = model.encode([question], normalize_embeddings=True)
-    c_embs = model.encode(
-        texts, normalize_embeddings=True, batch_size=64, show_progress_bar=False
-    )
-    scores = (c_embs @ q_emb.T).flatten()
-    top_idx = np.argsort(scores)[::-1][:top_k]
-    return [(chunks[i], float(scores[i])) for i in top_idx]
+    """Rank chunks by lexical overlap — no model loaded, no GPU/RAM pressure."""
+    import math as _math
+    _stop = {
+        "a", "an", "and", "are", "as", "at", "be", "by", "did", "do",
+        "does", "for", "from", "how", "in", "is", "it", "of", "on", "or",
+        "that", "the", "to", "was", "were", "what", "with",
+    }
+
+    def _tok(text: str) -> set[str]:
+        return {
+            t for t in re.findall(r"[a-zA-Z][a-zA-Z0-9-]{2,}", text.lower())
+            if t not in _stop
+        }
+
+    q_tok = _tok(question)
+    if not q_tok:
+        return [(c, 0.0) for c in chunks[:top_k]]
+
+    scored = []
+    for chunk in chunks:
+        overlap = len(q_tok & _tok(chunk["text"])) / _math.sqrt(len(q_tok))
+        scored.append((chunk, round(overlap, 4)))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:top_k]
 
 
 # ── Public interface ──────────────────────────────────────────────────────────
