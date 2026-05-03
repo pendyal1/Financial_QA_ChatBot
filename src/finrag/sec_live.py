@@ -44,10 +44,9 @@ COMPANY_TICKERS_URL = f"{SEC_BASE}/files/company_tickers.json"
 _CHUNK_SIZE = 800
 _CHUNK_OVERLAP = 100
 _MIN_CHUNK = 80
-_MAX_HTML_BYTES = 500_000       # stream at most 500 KB — captures Risk Factors,
-                                # MD&A, and Income Statement for most 10-Ks
-_MAX_DOC_CHARS = 120_000        # cap plain text after HTML parsing
-_MAX_CHUNKS_TO_EMBED = 200      # embed at most this many chunks
+_MAX_HTML_BYTES = 200_000       # stream at most 200 KB — enough for Risk Factors + MD&A
+_MAX_DOC_CHARS = 50_000         # cap plain text after HTML parsing (~60 pages)
+_MAX_CHUNKS_TO_EMBED = 120      # embed at most this many chunks
 
 # Patterns that flag a question as needing structured financial data
 _NUMERICAL_RE = re.compile(
@@ -432,11 +431,15 @@ def live_retrieve(
     ticker, company, cik = resolve_company(question, user_agent)
     filing_url, filing_date, _ = _get_latest_10k_url(cik, user_agent)
 
+    import gc
     html = _stream_html(filing_url, user_agent)
     text = _html_to_text(html)[:_MAX_DOC_CHARS]
     del html
+    gc.collect()
 
     chunks = _chunk_text(text, ticker)
+    del text
+    gc.collect()
     ranked = _rank_chunks(question, chunks, top_k=top_k)
     source_label = f"{company} 10-K ({filing_date})"
 
