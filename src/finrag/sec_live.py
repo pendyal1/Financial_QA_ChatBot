@@ -433,19 +433,31 @@ def live_retrieve(
     list[RetrievalResult]
         Drop-in replacement for FAISS retrieval results.
     """
-    ticker, company, cik = resolve_company(question, user_agent)
-    filing_url, filing_date, _ = _get_latest_10k_url(cik, user_agent)
-
     import gc
+
+    print(f"[live_retrieve] Resolving company from question...")
+    ticker, company, cik = resolve_company(question, user_agent)
+    print(f"[live_retrieve] Resolved: {company} ({ticker}), CIK={cik}")
+
+    print(f"[live_retrieve] Fetching latest 10-K URL...")
+    filing_url, filing_date, _ = _get_latest_10k_url(cik, user_agent)
+    print(f"[live_retrieve] Filing: {filing_date} — {filing_url[:80]}...")
+
+    print(f"[live_retrieve] Streaming HTML (cap={_MAX_HTML_BYTES//1000}KB)...")
     html = _stream_html(filing_url, user_agent)
+    print(f"[live_retrieve] Parsing HTML to text...")
     text = _html_to_text(html)[:_MAX_DOC_CHARS]
     del html
     gc.collect()
+    print(f"[live_retrieve] Text length: {len(text):,} chars")
 
+    print(f"[live_retrieve] Chunking and ranking...")
     chunks = _chunk_text(text, ticker)
     del text
     gc.collect()
+    print(f"[live_retrieve] {len(chunks)} chunks created, ranking top {top_k}...")
     ranked = _rank_chunks(question, chunks, top_k=top_k)
+    print(f"[live_retrieve] Done.")
     source_label = f"{company} 10-K ({filing_date})"
 
     results: list[RetrievalResult] = [
