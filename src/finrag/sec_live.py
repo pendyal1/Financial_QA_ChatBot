@@ -41,7 +41,7 @@ COMPANY_TICKERS_URL = f"{SEC_BASE}/files/company_tickers.json"
 _CHUNK_SIZE = 800
 _CHUNK_OVERLAP = 100
 _MIN_CHUNK = 80
-_MAX_HTML_BYTES = 200_000       # stream at most 200 KB — enough for Risk Factors + MD&A
+_MAX_HTML_BYTES = 200_000       # stream at most 200 KB — enough for Risk Factors + MD&A; BeautifulSoup parses this slice only
 _MAX_DOC_CHARS = 50_000         # cap plain text after HTML parsing (~60 pages)
 _MAX_CHUNKS_TO_EMBED = 120      # embed at most this many chunks
 
@@ -112,22 +112,60 @@ def _stream_html(url: str, user_agent: str = DEFAULT_SEC_USER_AGENT) -> str:
     return raw.decode(encoding, errors="replace")
 
 
+def _table_to_text(table) -> str:
+    """Convert a BeautifulSoup <table> element to readable 'Label: v1, v2, v3' lines."""
+    rows = table.find_all("tr")
+    if not rows:
+        return ""
+    # First row often contains year/period headers
+    header_cells = rows[0].find_all(["th", "td"])
+    headers = [c.get_text(" ", strip=True) for c in header_cells]
+    lines: list[str] = []
+    for row in rows[1:]:
+        cells = row.find_all(["th", "td"])
+        if not cells:
+            continue
+        label = cells[0].get_text(" ", strip=True)
+        values = [c.get_text(" ", strip=True) for c in cells[1:]]
+        # Skip rows with no real label or only dashes/blanks
+        if not label or re.match(r"^[-— ]+$", label):
+            continue
+        # Pair values with headers when headers exist
+        if len(headers) > 1 and len(values) == len(headers) - 1:
+            parts = [f"{h}: {v}" for h, v in zip(headers[1:], values) if v and v != "-"]
+        else:
+            parts = [v for v in values if v and v != "-"]
+        if parts:
+            lines.append(f"{label}: {', '.join(parts)}")
+    return "\n".join(lines)
+
+
 def _html_to_text(html: str) -> str:
-    """Extract text from HTML using regex — avoids BeautifulSoup's large DOM (~20x input size)."""
-    # Drop script/style/noscript blocks entirely
-    html = re.sub(r"<(script|style|noscript)[^>]*>.*?</\1>", " ", html, flags=re.DOTALL | re.IGNORECASE)
-    # Strip remaining tags
-    text = re.sub(r"<[^>]+>", " ", html)
+    """Extract readable text from HTML, converting tables to structured prose."""
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html[:_MAX_HTML_BYTES], "html.parser")
     del html
-    # Decode common HTML entities
-    for entity, char in [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
-                         ("&nbsp;", " "), ("&#160;", " "), ("&quot;", '"')]:
-        text = text.replace(entity, char)
-    # Normalise whitespace
+
+    # Remove non-content elements
+    for tag in soup(["script", "style", "noscript", "head"]):
+        tag.decompose()
+
+    parts: list[str] = []
+    for element in soup.body.descendants if soup.body else soup.descendants:
+        if element.name == "table":
+            table_text = _table_to_text(element)
+            if table_text:
+                parts.append(table_text)
+            element.decompose()  # skip table's children in further iteration
+        elif element.name in ("p", "div", "span", "li", "h1", "h2", "h3", "h4", "td", "th"):
+            t = element.get_text(" ", strip=True)
+            if t:
+                parts.append(t)
+
+    text = "\n".join(parts)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    return "\n".join(lines)[:_MAX_DOC_CHARS]
+    return text[:_MAX_DOC_CHARS]
 
 
 # ── Company resolution ────────────────────────────────────────────────────────
