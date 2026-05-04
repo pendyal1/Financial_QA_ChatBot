@@ -28,7 +28,6 @@ import re
 from typing import Any
 
 import requests
-from bs4 import BeautifulSoup
 
 from finrag.config import DEFAULT_SEC_USER_AGENT
 from finrag.models import RetrievalResult
@@ -114,13 +113,17 @@ def _stream_html(url: str, user_agent: str = DEFAULT_SEC_USER_AGENT) -> str:
 
 
 def _html_to_text(html: str) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-    for tag in soup(["script", "style", "noscript"]):
-        tag.decompose()
-    text = soup.get_text("\n")
-    soup.decompose()  # explicitly free the BS4 DOM — can be 10-20x the HTML size
-    del soup
-    text = re.sub(r"\r", "\n", text)
+    """Extract text from HTML using regex — avoids BeautifulSoup's large DOM (~20x input size)."""
+    # Drop script/style/noscript blocks entirely
+    html = re.sub(r"<(script|style|noscript)[^>]*>.*?</\1>", " ", html, flags=re.DOTALL | re.IGNORECASE)
+    # Strip remaining tags
+    text = re.sub(r"<[^>]+>", " ", html)
+    del html
+    # Decode common HTML entities
+    for entity, char in [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
+                         ("&nbsp;", " "), ("&#160;", " "), ("&quot;", '"')]:
+        text = text.replace(entity, char)
+    # Normalise whitespace
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
