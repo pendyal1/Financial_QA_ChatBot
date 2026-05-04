@@ -357,6 +357,18 @@ def _fetch_xbrl_summary(
 
 # ── Chunking and embedding ────────────────────────────────────────────────────
 
+_XBRL_JUNK_RE = re.compile(
+    r"(https?://|fasb\.org|xbrli?:|us-gaap:|[a-z]{2,10}:[A-Z][A-Za-z]{5,})",
+)
+
+
+def _is_xbrl_junk(text: str) -> bool:
+    """Return True if the chunk is mostly raw iXBRL/XML data rather than readable prose."""
+    matches = len(_XBRL_JUNK_RE.findall(text))
+    words = len(text.split())
+    return words > 0 and matches / words > 0.15
+
+
 def _chunk_text(text: str, ticker: str) -> list[dict[str, Any]]:
     chunks: list[dict[str, Any]] = []
     start = 0
@@ -364,7 +376,7 @@ def _chunk_text(text: str, ticker: str) -> list[dict[str, Any]]:
     while start < len(text):
         end = min(start + _CHUNK_SIZE, len(text))
         chunk_text = text[start:end].strip()
-        if len(chunk_text) >= _MIN_CHUNK:
+        if len(chunk_text) >= _MIN_CHUNK and not _is_xbrl_junk(chunk_text):
             chunks.append({"chunk_id": f"{ticker}_live_{idx:04d}", "text": chunk_text})
             idx += 1
         next_start = end - _CHUNK_OVERLAP
