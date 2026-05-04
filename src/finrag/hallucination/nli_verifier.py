@@ -114,7 +114,7 @@ class NLIVerifier:
         retrieved: list[RetrievalResult],
     ) -> ClaimVerification:
         pairs = [
-            (claim.text, result.text[:_MAX_EVIDENCE_CHARS])
+            (result.text[:_MAX_EVIDENCE_CHARS], claim.text)
             for result in retrieved
         ]
         scores = self._model.predict(pairs, apply_softmax=True)
@@ -131,7 +131,7 @@ class NLIVerifier:
 
         for ci, claim in enumerate(claims):
             for pi, result in enumerate(retrieved):
-                pairs.append((claim.text, result.text[:_MAX_EVIDENCE_CHARS]))
+                pairs.append((result.text[:_MAX_EVIDENCE_CHARS], claim.text))
                 index_map.append((ci, pi))
 
         if not pairs:
