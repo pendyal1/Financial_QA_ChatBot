@@ -367,7 +367,10 @@ def _chunk_text(text: str, ticker: str) -> list[dict[str, Any]]:
         if len(chunk_text) >= _MIN_CHUNK:
             chunks.append({"chunk_id": f"{ticker}_live_{idx:04d}", "text": chunk_text})
             idx += 1
-        start = end - _CHUNK_OVERLAP
+        next_start = end - _CHUNK_OVERLAP
+        if next_start <= start:  # no forward progress — last chunk reached
+            break
+        start = next_start
     return chunks
 
 
