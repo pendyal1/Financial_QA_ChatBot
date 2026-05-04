@@ -108,13 +108,18 @@ class NLIVerifier:
         except Exception:
             return False
 
+    @staticmethod
+    def _evidence_text(result: RetrievalResult) -> str:
+        prefix = f"{result.company}: " if result.company else ""
+        return (prefix + result.text)[:_MAX_EVIDENCE_CHARS]
+
     def _verify_with_nli(
         self,
         claim: Claim,
         retrieved: list[RetrievalResult],
     ) -> ClaimVerification:
         pairs = [
-            (result.text[:_MAX_EVIDENCE_CHARS], claim.text)
+            (self._evidence_text(result), claim.text)
             for result in retrieved
         ]
         scores = self._model.predict(pairs, apply_softmax=True)
@@ -131,7 +136,7 @@ class NLIVerifier:
 
         for ci, claim in enumerate(claims):
             for pi, result in enumerate(retrieved):
-                pairs.append((result.text[:_MAX_EVIDENCE_CHARS], claim.text))
+                pairs.append((self._evidence_text(result), claim.text))
                 index_map.append((ci, pi))
 
         if not pairs:
