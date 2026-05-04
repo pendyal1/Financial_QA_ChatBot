@@ -113,10 +113,10 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
     user_content = (
         f"Question: {question}\n\n"
         f"Evidence:\n{context}\n\n"
-        "Write 2-4 concise bullets that directly answer the question. "
-        "Each bullet must contain a substantive claim in words plus one bracketed citation. "
+        "Synthesize a direct answer in your own words — do not copy evidence verbatim. "
+        "Write 2-4 concise sentences or bullets. "
+        "Each sentence must make a substantive claim and end with one bracketed citation. "
         "Do not output only citation IDs. "
-        "Do not include citations unless they support the words in the same bullet. "
         f"{citation_rule}\n\nAnswer:"
     )
     messages = [
@@ -156,7 +156,9 @@ def create_app(model_name: str, adapter_path: str | None, trust_remote_code: boo
             output = model.generate(
                 **inputs,
                 max_new_tokens=request.max_new_tokens,
-                do_sample=False,
+                do_sample=True,
+                temperature=0.2,
+                top_p=0.9,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )

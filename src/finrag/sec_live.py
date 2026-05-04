@@ -358,15 +358,22 @@ def _fetch_xbrl_summary(
 # ── Chunking and embedding ────────────────────────────────────────────────────
 
 _XBRL_JUNK_RE = re.compile(
-    r"(https?://|fasb\.org|xbrli?:|us-gaap:|[a-z]{2,10}:[A-Z][A-Za-z]{5,})",
+    r"(https?://"                        # URLs
+    r"|fasb\.org|xbrli?:|us-gaap:"       # XBRL/FASB namespaces
+    r"|[a-z]{2,10}:[A-Za-z]{2,}"         # XML namespace tokens  e.g. tsla:Revenue, country:US
+    r"|\b\d{4}-\d{2}-\d{2}\b"           # ISO dates  2023-12-31
+    r"|\b0\d{9}\b"                       # SEC CIK numbers  0001318605
+    r")"
 )
 
 
 def _is_xbrl_junk(text: str) -> bool:
     """Return True if the chunk is mostly raw iXBRL/XML data rather than readable prose."""
-    matches = len(_XBRL_JUNK_RE.findall(text))
-    words = len(text.split())
-    return words > 0 and matches / words > 0.15
+    words = text.split()
+    if not words:
+        return False
+    matches = sum(1 for w in words if _XBRL_JUNK_RE.search(w))
+    return matches / len(words) > 0.15
 
 
 def _chunk_text(text: str, ticker: str) -> list[dict[str, Any]]:
