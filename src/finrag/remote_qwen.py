@@ -9,7 +9,6 @@ from finrag.answer import build_context, extractive_answer, is_low_content_answe
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import Claim, ClaimVerification, HallucinationReport, RAGResponse, RetrievalResult
 from finrag.query import analyze_query
-from finrag.retrieve import Retriever
 
 
 DEFAULT_QWEN_ENDPOINT = os.getenv("COLAB_QWEN_ENDPOINT", "").rstrip("/")
@@ -105,6 +104,7 @@ def answer_with_remote_qwen(
     top_k: int = 5,
     max_new_tokens: int = 350,
 ) -> RAGResponse:
+    from finrag.retrieve import Retriever  # lazy — avoids loading faiss+PyTorch at startup
     intent = analyze_query(question)
     retriever = Retriever()
     retrieved = retriever.search(question, top_k=top_k, allowed_tickers=intent.tickers or None)

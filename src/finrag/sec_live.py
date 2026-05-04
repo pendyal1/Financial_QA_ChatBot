@@ -439,8 +439,23 @@ def live_retrieve(
         Drop-in replacement for FAISS retrieval results.
     """
     import gc
+    import ctypes
 
-    print(f"[live_retrieve] Resolving company from question...")
+    def _free_mb() -> str:
+        try:
+            class _MS(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                             ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                             ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                             ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                             ("sullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            s = _MS(); s.dwLength = ctypes.sizeof(s)
+            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(s))
+            return f"{s.ullAvailPhys / 1024 / 1024:.0f} MB free"
+        except Exception:
+            return "?"
+
+    print(f"[live_retrieve] Resolving company from question... ({_free_mb()})")
     ticker, company, cik = resolve_company(question, user_agent)
     print(f"[live_retrieve] Resolved: {company} ({ticker}), CIK={cik}")
 
@@ -448,21 +463,21 @@ def live_retrieve(
     filing_url, filing_date, _ = _get_latest_10k_url(cik, user_agent)
     print(f"[live_retrieve] Filing: {filing_date} — {filing_url[:80]}...")
 
-    print(f"[live_retrieve] Streaming HTML (cap={_MAX_HTML_BYTES//1000}KB)...")
+    print(f"[live_retrieve] Streaming HTML (cap={_MAX_HTML_BYTES//1000}KB)... ({_free_mb()})")
     html = _stream_html(filing_url, user_agent)
-    print(f"[live_retrieve] Parsing HTML to text...")
+    print(f"[live_retrieve] Parsing HTML to text... ({_free_mb()})")
     text = _html_to_text(html)[:_MAX_DOC_CHARS]
     del html
     gc.collect()
-    print(f"[live_retrieve] Text length: {len(text):,} chars")
+    print(f"[live_retrieve] Text length: {len(text):,} chars ({_free_mb()})")
 
-    print(f"[live_retrieve] Chunking and ranking...")
+    print(f"[live_retrieve] Chunking and ranking... ({_free_mb()})")
     chunks = _chunk_text(text, ticker)
     del text
     gc.collect()
-    print(f"[live_retrieve] {len(chunks)} chunks created, ranking top {top_k}...")
+    print(f"[live_retrieve] {len(chunks)} chunks, ranking top {top_k}... ({_free_mb()})")
     ranked = _rank_chunks(question, chunks, top_k=top_k)
-    print(f"[live_retrieve] Done.")
+    print(f"[live_retrieve] Done. ({_free_mb()})")
     source_label = f"{company} 10-K ({filing_date})"
 
     results: list[RetrievalResult] = [
