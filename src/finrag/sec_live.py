@@ -385,7 +385,7 @@ def _fetch_xbrl_summary(
                 else f"${val / 1_000_000:.1f}M"
             )
         else:
-            val_str = str(val)
+            val_str = re.sub(r"<[^>]*>", "", str(val)).strip()
         lines.append(f"{label} ({end}): {val_str}")
     return "\n".join(lines) if len(lines) > 1 else ""
 

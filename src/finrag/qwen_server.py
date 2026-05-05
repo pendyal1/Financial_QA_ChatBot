@@ -130,15 +130,19 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
 
 def clean_generation(text: str) -> str:
     text = text.strip()
-    text = re.sub(r"^(assistant|answer)\s*:\s*", "", text, flags=re.IGNORECASE).strip()
-    # Remove model self-commentary artifacts that appear mid-answer
+    # Strip leading role/section prefixes
+    text = re.sub(r"^(assistant|answer|synthesized_answer|synthesis)\s*:\s*", "", text, flags=re.IGNORECASE).strip()
+    # Remove mid-answer self-commentary artifacts
     text = re.sub(
-        r"\n*(synthesizing further|continuing|in summary|to summarize|note:|"
-        r"additional context|further context|let me|I should)\s*:?\s*\n*",
+        r"\n*(synthesized_answer|synthesis|synthesizing further|continuing|in summary|"
+        r"to summarize|note:|additional context|further context|let me|I should)\s*:?\s*\n*",
         " ",
         text,
         flags=re.IGNORECASE,
     ).strip()
+    # Strip residual HTML tags the model may echo from context (<sup>, <sub>, <i>, etc.)
+    text = re.sub(r"<[^>]*>", " ", text)
+    text = re.sub(r"\s{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text
 
