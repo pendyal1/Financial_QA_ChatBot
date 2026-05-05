@@ -149,7 +149,11 @@ def create_app(model_name: str, adapter_path: str | None, trust_remote_code: boo
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok", "model": model_name}
+        return {
+            "status": "ok",
+            "model": model_name,
+            "adapter": adapter_path or "none (base model)",
+        }
 
     @app.post("/generate", response_model=GenerateResponse)
     def generate(request: GenerateRequest) -> GenerateResponse:

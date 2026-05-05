@@ -42,6 +42,14 @@ with st.sidebar:
         value=DEFAULT_QWEN_ENDPOINT,
         help="Paste the tunnel URL from Colab after starting the Qwen server (Cloudflare or ngrok).",
     )
+    if endpoint.strip():
+        try:
+            import requests as _req
+            _h = _req.get(f"{endpoint.rstrip('/')}/health", timeout=5).json()
+            st.success(f"Server online — model: `{_h.get('model','?')}`")
+            st.caption(f"Adapter: `{_h.get('adapter','?')}`")
+        except Exception:
+            st.warning("Endpoint set but server not reachable.")
 
 # ── Main input ────────────────────────────────────────────────────────────────
 question = st.text_input(
