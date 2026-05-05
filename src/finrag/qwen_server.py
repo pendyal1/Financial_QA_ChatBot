@@ -131,6 +131,14 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
 def clean_generation(text: str) -> str:
     text = text.strip()
     text = re.sub(r"^(assistant|answer)\s*:\s*", "", text, flags=re.IGNORECASE).strip()
+    # Remove model self-commentary artifacts that appear mid-answer
+    text = re.sub(
+        r"\n*(synthesizing further|continuing|in summary|to summarize|note:|"
+        r"additional context|further context|let me|I should)\s*:?\s*\n*",
+        " ",
+        text,
+        flags=re.IGNORECASE,
+    ).strip()
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text
 

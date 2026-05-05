@@ -158,7 +158,7 @@ def _html_to_text(html: str) -> str:
 
     text = soup.get_text(separator="\n")
     # iXBRL parsers sometimes leave tag-like fragments as literal text
-    text = re.sub(r"<[^>]{1,80}>", " ", text)
+    text = re.sub(r"<[^>]*>", " ", text)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -393,11 +393,12 @@ def _fetch_xbrl_summary(
 # ── Chunking and embedding ────────────────────────────────────────────────────
 
 _XBRL_JUNK_RE = re.compile(
-    r"(https?://"                        # URLs
+    r"(https?://"                        # URLs with protocol
     r"|fasb\.org|xbrli?:|us-gaap:"       # XBRL/FASB namespaces
     r"|[a-z]{2,10}:[A-Za-z]{2,}"         # XML namespace tokens  e.g. tsla:Revenue, country:US
     r"|\b\d{4}-\d{2}-\d{2}\b"           # ISO dates  2023-12-31
     r"|\b0\d{9}\b"                       # SEC CIK numbers  0001318605
+    r"|\b[a-z0-9-]{3,}\.(com|org|gov|io|net|edu)\b"  # bare domain names
     r")"
 )
 
@@ -452,9 +453,19 @@ def _rank_chunks(
     if not q_tok:
         return [(c, 0.0) for c in chunks[:top_k]]
 
+    # Bare-domain pattern to detect nav/footer chunks that slipped through junk filter
+    _url_re = re.compile(r"\b[a-z0-9-]{3,}\.(com|org|gov|io|net|edu)\b", re.IGNORECASE)
+
     scored = []
     for chunk in chunks:
-        overlap = len(q_tok & _tok(chunk["text"])) / _math.sqrt(len(q_tok))
+        text = chunk["text"]
+        overlap = len(q_tok & _tok(text)) / _math.sqrt(len(q_tok))
+        # Penalise nav/footer chunks: many bare domains OR semicolon-separated lists
+        words = text.split()
+        url_density = sum(1 for w in words if _url_re.search(w)) / max(len(words), 1)
+        semicolon_density = text.count(";") / max(len(words), 1)
+        if url_density > 0.08 or semicolon_density > 0.05:
+            overlap *= 0.3
         scored.append((chunk, round(overlap, 4)))
 
     scored.sort(key=lambda x: x[1], reverse=True)
