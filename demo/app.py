@@ -64,6 +64,14 @@ if st.button("Ask", type="primary") and question.strip():
             st.write("Resolving company and fetching latest 10-K...")
             results = live_retrieve(question, top_k=top_k if not use_reranker else top_k * 2)
 
+            if not results:
+                status.update(label="No passages retrieved", state="error")
+                st.error(
+                    "The SEC filing for this company could not be parsed into readable text. "
+                    "This can happen with iXBRL-format filings. Try a different company or question."
+                )
+                st.stop()
+
             if use_reranker:
                 st.write("Reranking passages...")
                 results = rerank(question, results, top_k=top_k)

@@ -150,22 +150,17 @@ def _html_to_text(html: str) -> str:
     for tag in soup(["script", "style", "noscript", "head"]):
         tag.decompose()
 
-    parts: list[str] = []
-    for element in soup.body.descendants if soup.body else soup.descendants:
-        if element.name == "table":
-            table_text = _table_to_text(element)
-            if table_text:
-                parts.append(table_text)
-            element.decompose()  # skip table's children in further iteration
-        elif element.name in ("p", "div", "span", "li", "h1", "h2", "h3", "h4", "td", "th"):
-            t = element.get_text(" ", strip=True)
-            if t:
-                parts.append(t)
+    # Replace each <table> with structured text in-place BEFORE full extraction.
+    # Do not decompose during iteration — collect first, then replace.
+    for table in soup.find_all("table"):
+        table_text = _table_to_text(table)
+        table.replace_with(table_text + "\n" if table_text else "")
 
-    text = "\n".join(parts)
+    text = soup.get_text(separator="\n")
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    return text[:_MAX_DOC_CHARS]
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return "\n".join(lines)[:_MAX_DOC_CHARS]
 
 
 # ── Company resolution ────────────────────────────────────────────────────────
