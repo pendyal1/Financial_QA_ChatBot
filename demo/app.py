@@ -137,19 +137,19 @@ if st.button("Ask", type="primary") and question.strip():
 
     if report is not None:
         col1, col2, col3, col4 = st.columns(4)
-        risk_color = {"Low": "green", "Medium": "orange", "High": "red"}.get(report.overall_risk, "gray")
+        risk_color = {"Low": "green", "Medium": "blue", "High": "violet"}.get(report.overall_risk, "gray")
         col1.metric("Hallucination Risk", report.overall_risk)
         col2.metric("Confidence Score", f"{report.confidence_score:.2f}")
         col3.metric("Grounded Claims", report.grounded_count)
         col4.metric("Unsupported Claims", report.unsupported_count)
 
         if report.overall_risk == "High":
-            st.warning("One or more claims could not be verified against the retrieved evidence. Review carefully.")
+            st.info("One or more claims could not be verified against the retrieved evidence. Review carefully.")
 
         with st.expander("Claim-level breakdown"):
             for cv in report.claims:
                 icon = {"grounded": "✓", "partial": "~", "unsupported": "✗"}.get(cv.label, "?")
-                color = {"grounded": "green", "partial": "orange", "unsupported": "red"}.get(cv.label, "gray")
+                color = {"grounded": "green", "partial": "blue", "unsupported": "violet"}.get(cv.label, "gray")
                 st.markdown(f":{color}[{icon} **{cv.label.upper()}** (conf: {cv.confidence:.2f})] {cv.claim.text}")
                 if cv.evidence_snippet:
                     st.caption(f"Evidence: {cv.evidence_snippet[:150]}...")
