@@ -157,6 +157,8 @@ def _html_to_text(html: str) -> str:
         table.replace_with(table_text + "\n" if table_text else "")
 
     text = soup.get_text(separator="\n")
+    # iXBRL parsers sometimes leave tag-like fragments as literal text
+    text = re.sub(r"<[^>]{1,80}>", " ", text)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     lines = [line.strip() for line in text.splitlines() if line.strip()]

@@ -40,7 +40,7 @@ with st.sidebar:
     endpoint = st.text_input(
         "Colab Qwen endpoint URL",
         value=DEFAULT_QWEN_ENDPOINT,
-        help="Paste the ngrok URL from Colab after starting the Qwen server.",
+        help="Paste the tunnel URL from Colab after starting the Qwen server (Cloudflare or ngrok).",
     )
 
 # ── Main input ────────────────────────────────────────────────────────────────

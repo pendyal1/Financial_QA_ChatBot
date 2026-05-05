@@ -157,8 +157,9 @@ def create_app(model_name: str, adapter_path: str | None, trust_remote_code: boo
                 **inputs,
                 max_new_tokens=request.max_new_tokens,
                 do_sample=True,
-                temperature=0.2,
+                temperature=0.3,
                 top_p=0.9,
+                repetition_penalty=1.3,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )
