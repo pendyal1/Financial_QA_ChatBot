@@ -1,70 +1,34 @@
 # FinRAG
 
-Financial QA over SEC filings, with live EDGAR retrieval, citation-grounded answers, and hallucination checks.
+Financial question answering over live SEC filings with retrieval-augmented generation.
 
-## Current Architecture
+This branch uses `DragonLLM/Qwen-Open-Finance-R-8B-FP8` as the generator. There is no fine-tuning and no LoRA adapter. The Streamlit app runs locally, retrieves SEC evidence for the company in the question, and sends the retrieved context to a Qwen server running on a Colab GPU.
 
-The repo now uses a different architecture than the original static-index prototype.
+## Architecture
 
+- Front end: Streamlit (`demo/app.py`)
 - Retrieval corpus: live SEC EDGAR APIs at question time
-- Numeric facts: SEC `companyfacts` API when the question is financial-statement oriented
-- Dense retrieval: sentence-transformer embeddings over freshly pulled filing chunks
+- Company resolution: public company name or ticker from SEC `company_tickers.json`
+- Filing text: latest relevant `10-K`, `10-Q`, and `8-K` documents
+- Numeric facts: SEC `companyfacts` API for common financial statement questions
+- Retrieval: sentence-transformer embeddings over fresh filing chunks
 - Reranking: `BAAI/bge-reranker-v2-m3`
-- Generator: Qwen served through a LoRA adapter endpoint
-- Fine-tuning: QLoRA on a curated training mix
-- Local app: Streamlit on CPU
-- Remote generation: Colab GPU endpoint
+- Generator: `DragonLLM/Qwen-Open-Finance-R-8B-FP8` served by `finrag.qwen_server`
+- Verification: citation checks and hallucination risk scoring
 
-The interactive app no longer accepts uploaded files. It expects the user to mention a public company name or ticker in the question, then it pulls the relevant filing material directly from the SEC.
+The app no longer accepts uploaded filings. The user must mention a public company name or ticker in the question.
 
-## Project Direction
+## Key Files
 
-FinRAG is meant to act like a research assistant for financial analysts:
-
-- pull relevant SEC filings
-- answer questions with evidence-backed citations
-- expose the retrieved evidence
-- flag weakly supported answers
-
-Primary evaluation target:
-
-- FinanceBench
-
-Secondary reasoning datasets:
-
-- FinQA
-- ConvFinQA
-- TAT-QA
-
-## Data Sources
-
-Training and evaluation data:
-
-- FinQA: https://huggingface.co/datasets/ibm-research/finqa
-- ConvFinQA: https://huggingface.co/datasets/AdaptLLM/ConvFinQA
-- FinanceBench: https://huggingface.co/datasets/PatronusAI/financebench
-- TAT-QA: https://github.com/NExTplusplus/TAT-QA
-
-Live retrieval APIs:
-
-- SEC EDGAR API overview: https://www.sec.gov/search-filings/edgar-application-programming-interfaces
-- Company submissions: `https://data.sec.gov/submissions/CIK##########.json`
-- Company facts: `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`
-
-## Repo Structure
-
-Key modules:
-
-- `src/finrag/sec_live.py`: live SEC company resolution, submissions fetch, companyfacts fetch, chunking, and retrieval
-- `src/finrag/rerank.py`: cross-encoder reranking with `BAAI/bge-reranker-v2-m3`
-- `src/finrag/answer.py`: extractive fallback, answer assembly, hallucination verification
-- `src/finrag/remote_qwen.py`: local client for the Colab Qwen endpoint
-- `src/finrag/qwen_server.py`: FastAPI GPU generation server that can infer the base model from a LoRA adapter
-- `src/finrag/fine_tuning.py`: curated fine-tuning mixture builder
-- `src/finrag/train_qlora.py`: QLoRA fine-tuning entrypoint
-- `src/finrag/benchmarks.py`: benchmark preparation helpers
-- `src/finrag/evaluate_benchmark.py`: benchmark evaluation with gold evidence
-- `demo/app.py`: local Streamlit UI
+- `demo/app.py`: Streamlit UI
+- `src/finrag/sec_live.py`: SEC company resolution, filing fetch, companyfacts fetch, chunking, retrieval
+- `src/finrag/rerank.py`: cross-encoder reranking
+- `src/finrag/qwen_server.py`: FastAPI GPU server for `DragonLLM/Qwen-Open-Finance-R-8B-FP8`
+- `src/finrag/remote_qwen.py`: local client for the Colab endpoint
+- `src/finrag/answer.py`: extractive debug fallback and citation-aware response assembly
+- `scripts/colab_setup.sh`: Colab dependency setup
+- `scripts/colab_start_qwen_server.sh`: starts the GPU model server
+- `scripts/colab_start_ngrok.py`: exposes the Colab server through ngrok
 
 ## Local Setup
 
@@ -72,172 +36,58 @@ Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-```
-
-Run everything from the repo root:
-
-```bash
 export PYTHONPATH=src
 ```
 
-## Streamlit Demo
+Set a SEC User-Agent with your contact email:
 
-Start the local app:
+```bash
+export SEC_USER_AGENT="FinRAG academic research your_email@example.com"
+```
+
+Start the local UI:
 
 ```bash
 streamlit run demo/app.py
 ```
 
-The app asks for:
+In the UI, paste the public Colab endpoint URL into `Open Finance Qwen endpoint`.
 
-- a financial question
-- retrieved chunk count
-- either:
-  - `LoRA Qwen endpoint`, or
-  - `Debug extractive fallback`
-- a SEC User-Agent identifying your app and contact email
+## Colab GPU Setup
 
-Example questions:
-
-```text
-What risks did Apple report related to supply chains?
-What does Microsoft report about AI-related risks?
-What revenue did Amazon report?
-What cybersecurity risks does Microsoft describe?
-```
-
-Important constraint:
-
-- mention a public company or ticker in the question
-
-## Live Retrieval Flow
-
-For each question, the app:
-
-1. resolves the company from the question
-2. fetches filing metadata through the official SEC submissions API
-3. fetches SEC `companyfacts` API records for numeric financial-statement questions
-4. chunks filing text
-5. runs dense retrieval
-6. reranks with `BAAI/bge-reranker-v2-m3`
-7. sends retrieved evidence to either:
-   - the local extractive fallback, or
-   - the Colab Qwen endpoint
-8. verifies citations and assigns hallucination risk
-
-## Use The Friend 7B LoRA Adapter
-
-The adapter in `/Users/adi/Downloads/finrag_lora_adapter` was trained against:
-
-```text
-Qwen/Qwen2.5-7B-Instruct
-```
-
-The server now reads `adapter_config.json` and uses that base model automatically when `--model-name` is omitted. Do not force the old 14B default with this adapter.
-
-Create `.env` from `.env.example` and edit the SEC contact email:
-
-```bash
-cp .env.example .env
-```
-
-Run the frontend from the repo root:
-
-```bash
-export PYTHONPATH=src
-streamlit run demo/app.py
-```
-
-Run the LoRA server on a CUDA GPU machine:
-
-```bash
-export PYTHONPATH=src
-export FINRAG_LORA_ADAPTER_PATH="/Users/adi/Downloads/finrag_lora_adapter"
-python -m finrag.qwen_server --adapter-path "$FINRAG_LORA_ADAPTER_PATH" --port 8000
-```
-
-If the server runs on a remote GPU or Colab, expose port 8000 with ngrok and paste that URL into the frontend's `LoRA Qwen endpoint` field.
-
-## Build The Curated Training Mix
-
-Prepare the multi-dataset fine-tuning file:
-
-```bash
-PYTHONPATH=src python -m finrag.fine_tuning
-```
-
-This writes:
-
-- `data/fine_tuning/financial_qa_mix_train.jsonl`
-- `data/fine_tuning/financial_qa_mix_manifest.json`
-
-Optional dataset limits:
-
-```bash
-PYTHONPATH=src python -m finrag.fine_tuning \
-  --finqa-limit 3000 \
-  --convfinqa-limit 6000 \
-  --tatqa-limit 4000
-```
-
-## QLoRA Training On Colab
-
-Use a CUDA-backed Google Colab runtime.
-
-Install the Colab stack:
+Use a CUDA-backed Colab runtime.
 
 ```bash
 %cd /content/gdrive/MyDrive/project_folder/Financial_QA_ChatBot
 !bash scripts/colab_setup.sh
 ```
 
-Build the curated training file in Colab:
+The model is gated on Hugging Face, so your HF account must have access to `DragonLLM/Qwen-Open-Finance-R-8B-FP8`. Log in before starting the server:
 
-```bash
-!PYTHONPATH=src python -m finrag.fine_tuning
+```python
+from huggingface_hub import login
+login()
 ```
 
-Train the LoRA adapter:
+Start the model server:
 
 ```bash
-!PYTHONPATH=src python -m finrag.train_qlora \
-  --model-name Qwen/Qwen2.5-14B-Instruct \
-  --train-file data/fine_tuning/financial_qa_mix_train.jsonl \
-  --output-dir /content/gdrive/MyDrive/finrag-adapters/qwen2_5_14b_financial_qa_lora \
-  --epochs 1 \
-  --max-length 1536 \
-  --batch-size 1 \
-  --gradient-accumulation-steps 16 \
-  --learning-rate 2e-4 \
-  --lora-r 16 \
-  --lora-alpha 32
+!PYTHONPATH=src python -m finrag.qwen_server --port 8000
 ```
 
-The default training script now expects:
-
-- base model: `Qwen/Qwen2.5-14B-Instruct`
-- train file: `data/fine_tuning/financial_qa_mix_train.jsonl`
-
-## Serve Qwen From Colab
-
-Start the GPU server:
+Or use the launcher:
 
 ```bash
 !bash scripts/colab_start_qwen_server.sh
 ```
 
-The server launcher now defaults to:
-
-- model: inferred from `adapter_config.json` unless `MODEL_NAME` is set
-- adapter: `FINRAG_LORA_ADAPTER_PATH` or `/content/drive/MyDrive/Generative AI Project FinRAG/finrag_lora_adapter`
-
-Verify the server:
+Verify it:
 
 ```bash
 !curl -s http://127.0.0.1:8000/health
 ```
 
-Expose it publicly with ngrok:
+Expose the server with ngrok:
 
 ```python
 import os
@@ -246,6 +96,42 @@ os.environ["NGROK_AUTHTOKEN"] = "PASTE_YOUR_NGROK_AUTH_TOKEN"
 ```
 
 Paste the printed `https://...ngrok-free.app` URL into the Streamlit app.
+
+## Environment Variables
+
+- `SEC_USER_AGENT`: SEC-compliant app/contact header
+- `COLAB_QWEN_ENDPOINT`: optional default endpoint for the Streamlit UI
+- `FINRAG_GENERATOR_MODEL`: override generator model, defaults to `DragonLLM/Qwen-Open-Finance-R-8B-FP8`
+- `HF_TOKEN` or `HUGGING_FACE_HUB_TOKEN`: optional non-interactive Hugging Face token for the gated model
+- `FINRAG_MAX_INPUT_TOKENS`: prompt truncation limit for the model server, defaults to `8192`
+- `EMBEDDING_MODEL`: override retrieval embedding model
+- `RERANKER_MODEL`: override reranker model
+
+## Example Questions
+
+```text
+What risks did Apple report related to supply chains?
+What does Microsoft report about AI-related risks?
+What revenue did Amazon report?
+What cybersecurity risks does Microsoft describe?
+What capital expenditure trends did NVIDIA discuss?
+```
+
+## RAG Flow
+
+1. Resolve the requested company from the question.
+2. Fetch recent SEC filing metadata through the SEC submissions API.
+3. Fetch filing text and cache it under `data/sec_cache`.
+4. Fetch SEC companyfacts when the question asks for numeric financial-statement facts.
+5. Chunk filing text.
+6. Retrieve relevant chunks with embeddings and lexical/risk boosts.
+7. Rerank the candidates.
+8. Send the question, evidence, and allowed citation IDs to the Colab Qwen endpoint.
+9. Verify generated citations against retrieved evidence.
+
+## Debug Fallback
+
+The Streamlit backend selector includes `Debug extractive fallback`. This does not call a model. It selects high-signal sentences from the retrieved SEC evidence and is useful for testing retrieval when the Colab GPU endpoint is unavailable.
 
 ## Benchmark Preparation
 
@@ -256,7 +142,7 @@ PYTHONPATH=src python -m finrag.benchmarks financebench
 PYTHONPATH=src python -m finrag.benchmarks tatqa --split dev
 ```
 
-Run FinanceBench evaluation:
+Run FinanceBench evaluation with the extractive fallback:
 
 ```bash
 PYTHONPATH=src python -m finrag.evaluate_benchmark \
@@ -264,7 +150,7 @@ PYTHONPATH=src python -m finrag.evaluate_benchmark \
   --backend extractive
 ```
 
-Or evaluate through the remote Qwen endpoint:
+Run it through the Colab Qwen endpoint:
 
 ```bash
 PYTHONPATH=src python -m finrag.evaluate_benchmark \
@@ -273,21 +159,9 @@ PYTHONPATH=src python -m finrag.evaluate_benchmark \
   --endpoint https://YOUR-NGROK-URL.ngrok-free.app
 ```
 
-## What Changed
-
-Compared with the earlier prototype, this repo now:
-
-- removes the upload workflow from the UI
-- removes reliance on the local FAISS index for the interactive app
-- pulls SEC filings live from EDGAR
-- consults `companyfacts` for numeric questions
-- serves the generator through a LoRA endpoint and infers the correct base model from adapter metadata
-- replaces FinQA-only fine-tuning prep with a curated FinQA + ConvFinQA + TAT-QA mixture
-- adds a stronger reranker
-
 ## Current Limits
 
-- best on single-company questions
-- not for real-time stock prices
-- not for forecasting or investment advice
-- not yet optimized for long multi-company comparisons in a single query
+- Best on single-company questions.
+- Not for real-time stock prices.
+- Not for forecasting or investment advice.
+- Long multi-company comparisons are not optimized yet.

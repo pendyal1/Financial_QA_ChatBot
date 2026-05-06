@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 import argparse
-import os
 import re
 
-from openai import OpenAI
-
-from finrag.config import DEFAULT_OPENAI_MODEL, DEFAULT_SEC_USER_AGENT
+from finrag.config import DEFAULT_SEC_USER_AGENT
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
 from finrag.query import analyze_query, evidence_for_question
@@ -209,33 +206,12 @@ def extractive_answer(question: str, results: list[RetrievalResult]) -> str:
     return " ".join(selected)
 
 
-def llm_answer(question: str, results: list[RetrievalResult], model: str) -> str:
-    if not os.getenv("OPENAI_API_KEY"):
-        return extractive_answer(question, results)
-
-    client = OpenAI()
-    context = build_context(results, question=question)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": f"Question: {question}\n\nEvidence:\n{context}\n\nAnswer:",
-            },
-        ],
-        temperature=0.0,
-    )
-    return response.choices[0].message.content or ""
-
-
 def build_response_from_retrieved(
     question: str,
     retrieved: list[RetrievalResult],
-    model: str = DEFAULT_OPENAI_MODEL,
     expected_tickers: list[str] | None = None,
 ) -> RAGResponse:
-    answer = llm_answer(question, retrieved, model)
+    answer = extractive_answer(question, retrieved)
     if is_low_content_answer(answer):
         answer = extractive_answer(question, retrieved)
     citations = extract_citations(answer)
@@ -252,14 +228,12 @@ def build_response_from_retrieved(
 def answer_question(
     question: str,
     top_k: int = 5,
-    model: str = DEFAULT_OPENAI_MODEL,
     user_agent: str = DEFAULT_SEC_USER_AGENT,
 ) -> RAGResponse:
     company, retrieved = retrieve_live_sec(question, top_k=top_k, user_agent=user_agent)
     return build_response_from_retrieved(
         question=question,
         retrieved=retrieved,
-        model=model,
         expected_tickers=[company.ticker],
     )
 
@@ -283,13 +257,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Ask a financial RAG question.")
     parser.add_argument("question")
     parser.add_argument("--top-k", type=int, default=5)
-    parser.add_argument("--model", default=DEFAULT_OPENAI_MODEL)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    print_response(answer_question(args.question, top_k=args.top_k, model=args.model))
+    print_response(answer_question(args.question, top_k=args.top_k))
 
 
 if __name__ == "__main__":

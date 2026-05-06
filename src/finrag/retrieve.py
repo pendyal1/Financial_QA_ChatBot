@@ -6,9 +6,6 @@ import math
 import re
 from pathlib import Path
 
-import faiss
-from sentence_transformers import SentenceTransformer
-
 from finrag.config import (
     DEFAULT_EMBEDDING_MODEL,
     FAISS_INDEX_PATH,
@@ -85,6 +82,9 @@ class Retriever:
             raise FileNotFoundError(f"Missing FAISS index: {index_path}")
         if not metadata_path.exists():
             raise FileNotFoundError(f"Missing metadata: {metadata_path}")
+
+        import faiss
+        from sentence_transformers import SentenceTransformer
 
         self.index = faiss.read_index(str(index_path))
         self.chunks = json.loads(metadata_path.read_text(encoding="utf-8"))

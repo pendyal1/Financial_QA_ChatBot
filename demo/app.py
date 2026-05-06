@@ -11,7 +11,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 from finrag.answer import answer_question  # noqa: E402
 from finrag.config import DEFAULT_SEC_USER_AGENT  # noqa: E402
 from finrag.query import analyze_query, evidence_for_question  # noqa: E402
-from finrag.remote_qwen import DEFAULT_QWEN_ENDPOINT, answer_with_remote_qwen  # noqa: E402
+from finrag.remote_qwen import DEFAULT_OPEN_FINANCE_ENDPOINT, answer_with_remote_qwen  # noqa: E402
 
 
 st.set_page_config(page_title="FinRAG", page_icon="F", layout="wide")
@@ -37,21 +37,21 @@ question = st.text_input(
 top_k = st.slider("Retrieved chunks", min_value=3, max_value=10, value=5)
 backend = st.selectbox(
     "Answer backend",
-    options=["LoRA Qwen endpoint", "Debug extractive fallback"],
-    index=0 if DEFAULT_QWEN_ENDPOINT else 1,
+    options=["Open Finance Qwen endpoint", "Debug extractive fallback"],
+    index=0 if DEFAULT_OPEN_FINANCE_ENDPOINT else 1,
 )
 endpoint = st.text_input(
-    "LoRA Qwen endpoint",
-    value=DEFAULT_QWEN_ENDPOINT,
-    help="Public URL for finrag.qwen_server running on a GPU machine, for example https://name.ngrok-free.app",
+    "Open Finance Qwen endpoint",
+    value=DEFAULT_OPEN_FINANCE_ENDPOINT,
+    help="Public URL for finrag.qwen_server serving DragonLLM/Qwen-Open-Finance-R-8B-FP8 on a Colab GPU.",
 )
 
 if st.button("Ask", type="primary") and question.strip():
     with st.spinner("Retrieving SEC evidence and generating answer..."):
         try:
-            if backend == "LoRA Qwen endpoint":
+            if backend == "Open Finance Qwen endpoint":
                 if not endpoint.strip():
-                    st.error("Paste the LoRA Qwen endpoint URL before asking.")
+                    st.error("Paste the Open Finance Qwen endpoint URL before asking.")
                     st.stop()
                 response = answer_with_remote_qwen(
                     question=question,

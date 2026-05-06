@@ -28,7 +28,13 @@ DEFAULT_EMBEDDING_MODEL = os.getenv(
 DEFAULT_RERANKER_MODEL = os.getenv(
     "RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"
 )
-DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+DEFAULT_GENERATOR_MODEL = os.getenv(
+    "FINRAG_GENERATOR_MODEL",
+    os.getenv(
+        "HF_MODEL_NAME",
+        os.getenv("MODEL_NAME", "DragonLLM/Qwen-Open-Finance-R-8B-FP8"),
+    ),
+)
 DEFAULT_SEC_USER_AGENT = os.getenv(
     "SEC_USER_AGENT", "FinRAG academic research contact@example.com"
 )

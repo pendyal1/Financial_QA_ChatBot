@@ -13,6 +13,7 @@ from finrag.sec_live import retrieve_live_sec
 
 
 DEFAULT_QWEN_ENDPOINT = os.getenv("COLAB_QWEN_ENDPOINT", "").rstrip("/")
+DEFAULT_OPEN_FINANCE_ENDPOINT = DEFAULT_QWEN_ENDPOINT
 
 
 def endpoint_generate(

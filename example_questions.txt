@@ -1,8 +1,9 @@
 FinRAG Example Questions
 ========================
 
-These questions are designed for the current SEC filing corpus:
-AAPL, MSFT, TSLA, NVDA, and AMZN.
+These questions are designed for live SEC retrieval. They mention common
+public companies, but the app can resolve many other public company names or
+tickers from SEC company_tickers.json.
 
 
 Risk Questions

@@ -9,15 +9,15 @@ import urllib.request
 from pathlib import Path
 
 
-MODEL_NAME = os.getenv("MODEL_NAME") or os.getenv("HF_BASE_MODEL")
-PORT = int(os.getenv("PORT", "8000"))
-ADAPTER_PATH = os.getenv(
-    "ADAPTER_PATH",
-    os.getenv(
-        "FINRAG_LORA_ADAPTER_PATH",
-        "/content/drive/MyDrive/Generative AI Project FinRAG/finrag_lora_adapter",
-    ),
+MODEL_NAME = (
+    os.getenv("FINRAG_GENERATOR_MODEL")
+    or os.getenv("HF_MODEL_NAME")
+    or os.getenv("MODEL_NAME")
+    or "DragonLLM/Qwen-Open-Finance-R-8B-FP8"
 )
+PORT = int(os.getenv("PORT", "8000"))
+MAX_INPUT_TOKENS = int(os.getenv("FINRAG_MAX_INPUT_TOKENS", "8192"))
+TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "").lower() in {"1", "true", "yes"}
 LOG_FILE = Path(os.getenv("LOG_FILE", "qwen_server.log"))
 PID_FILE = Path(os.getenv("PID_FILE", "qwen_server.pid"))
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -53,14 +53,14 @@ def build_command() -> list[str]:
         "finrag.qwen_server",
         "--port",
         str(PORT),
+        "--model-name",
+        MODEL_NAME,
+        "--max-input-tokens",
+        str(MAX_INPUT_TOKENS),
     ]
-    if MODEL_NAME:
-        command.extend(["--model-name", MODEL_NAME])
-    if Path(ADAPTER_PATH).is_dir():
-        print(f"Using LoRA adapter: {ADAPTER_PATH}")
-        command.extend(["--adapter-path", ADAPTER_PATH])
-    else:
-        print(f"Adapter not found at {ADAPTER_PATH}; serving base model.")
+    if TRUST_REMOTE_CODE:
+        command.append("--trust-remote-code")
+    print(f"Serving model: {MODEL_NAME}")
     return command
 
 
