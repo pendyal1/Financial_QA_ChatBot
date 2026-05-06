@@ -9,10 +9,10 @@ import torch
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from finrag.adapter_config import resolve_base_model
 from finrag.answer import SYSTEM_PROMPT
 
 
-DEFAULT_MODEL = os.getenv("HF_BASE_MODEL", "Qwen/Qwen2.5-14B-Instruct")
 DEFAULT_ADAPTER = os.getenv("FINRAG_LORA_ADAPTER_PATH", "")
 
 
@@ -101,7 +101,8 @@ def clean_generation(text: str) -> str:
     return text
 
 
-def create_app(model_name: str, adapter_path: str | None, trust_remote_code: bool) -> FastAPI:
+def create_app(model_name: str | None, adapter_path: str | None, trust_remote_code: bool) -> FastAPI:
+    model_name = resolve_base_model(adapter_path, model_name)
     tokenizer, model = load_model(model_name, adapter_path, trust_remote_code)
     app = FastAPI(title="FinRAG Qwen GPU Server")
 
@@ -134,8 +135,12 @@ def create_app(model_name: str, adapter_path: str | None, trust_remote_code: boo
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Serve Qwen 2.5 14B for FinRAG generation on a GPU.")
-    parser.add_argument("--model-name", default=DEFAULT_MODEL)
+    parser = argparse.ArgumentParser(description="Serve a Qwen LoRA adapter for FinRAG generation on a GPU.")
+    parser.add_argument(
+        "--model-name",
+        default=None,
+        help="Base model. If omitted, infer from adapter_config.json, then HF_BASE_MODEL.",
+    )
     parser.add_argument("--adapter-path", default=DEFAULT_ADAPTER)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8000)

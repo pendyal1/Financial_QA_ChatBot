@@ -6,6 +6,7 @@ from typing import Any
 import requests
 
 from finrag.answer import build_context, extractive_answer, is_low_content_answer
+from finrag.config import DEFAULT_SEC_USER_AGENT
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
 from finrag.sec_live import retrieve_live_sec
@@ -45,8 +46,9 @@ def answer_with_remote_qwen(
     endpoint: str = DEFAULT_QWEN_ENDPOINT,
     top_k: int = 5,
     max_new_tokens: int = 350,
+    user_agent: str = DEFAULT_SEC_USER_AGENT,
 ) -> RAGResponse:
-    company, retrieved = retrieve_live_sec(question, top_k=top_k)
+    company, retrieved = retrieve_live_sec(question, top_k=top_k, user_agent=user_agent)
     return answer_with_remote_qwen_retrieved(
         question=question,
         retrieved=retrieved,

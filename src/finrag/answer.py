@@ -6,7 +6,7 @@ import re
 
 from openai import OpenAI
 
-from finrag.config import DEFAULT_OPENAI_MODEL
+from finrag.config import DEFAULT_OPENAI_MODEL, DEFAULT_SEC_USER_AGENT
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
 from finrag.query import analyze_query, evidence_for_question
@@ -249,8 +249,13 @@ def build_response_from_retrieved(
     )
 
 
-def answer_question(question: str, top_k: int = 5, model: str = DEFAULT_OPENAI_MODEL) -> RAGResponse:
-    company, retrieved = retrieve_live_sec(question, top_k=top_k)
+def answer_question(
+    question: str,
+    top_k: int = 5,
+    model: str = DEFAULT_OPENAI_MODEL,
+    user_agent: str = DEFAULT_SEC_USER_AGENT,
+) -> RAGResponse:
+    company, retrieved = retrieve_live_sec(question, top_k=top_k, user_agent=user_agent)
     return build_response_from_retrieved(
         question=question,
         retrieved=retrieved,

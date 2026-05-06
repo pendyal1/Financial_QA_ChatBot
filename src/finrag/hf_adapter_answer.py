@@ -4,13 +4,11 @@ import argparse
 import os
 from pathlib import Path
 
+from finrag.adapter_config import resolve_base_model
 from finrag.answer import SYSTEM_PROMPT, build_context, print_response
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse
 from finrag.sec_live import retrieve_live_sec
-
-
-DEFAULT_BASE_MODEL = os.getenv("HF_BASE_MODEL", "Qwen/Qwen2.5-14B-Instruct")
 
 
 def require_cuda() -> None:
@@ -23,12 +21,13 @@ def require_cuda() -> None:
 def generate_adapter_answer(
     question: str,
     adapter_path: Path | None,
-    model_name: str,
+    model_name: str | None,
     top_k: int,
     max_new_tokens: int,
     trust_remote_code: bool,
 ) -> RAGResponse:
     require_cuda()
+    model_name = resolve_base_model(adapter_path, model_name)
 
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -102,7 +101,11 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("FINRAG_LORA_ADAPTER_PATH") or None,
         help="Optional path to the saved LoRA adapter directory. If omitted, use the base Qwen model.",
     )
-    parser.add_argument("--model-name", default=DEFAULT_BASE_MODEL)
+    parser.add_argument(
+        "--model-name",
+        default=None,
+        help="Base model. If omitted, infer from adapter_config.json, then HF_BASE_MODEL.",
+    )
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--max-new-tokens", type=int, default=300)
     parser.add_argument("--trust-remote-code", action="store_true")

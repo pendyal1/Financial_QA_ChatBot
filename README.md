@@ -10,7 +10,7 @@ The repo now uses a different architecture than the original static-index protot
 - Numeric facts: SEC `companyfacts` API when the question is financial-statement oriented
 - Dense retrieval: sentence-transformer embeddings over freshly pulled filing chunks
 - Reranking: `BAAI/bge-reranker-v2-m3`
-- Generator: `Qwen/Qwen2.5-14B-Instruct`
+- Generator: Qwen served through a LoRA adapter endpoint
 - Fine-tuning: QLoRA on a curated training mix
 - Local app: Streamlit on CPU
 - Remote generation: Colab GPU endpoint
@@ -59,7 +59,7 @@ Key modules:
 - `src/finrag/rerank.py`: cross-encoder reranking with `BAAI/bge-reranker-v2-m3`
 - `src/finrag/answer.py`: extractive fallback, answer assembly, hallucination verification
 - `src/finrag/remote_qwen.py`: local client for the Colab Qwen endpoint
-- `src/finrag/qwen_server.py`: FastAPI GPU generation server
+- `src/finrag/qwen_server.py`: FastAPI GPU generation server that can infer the base model from a LoRA adapter
 - `src/finrag/fine_tuning.py`: curated fine-tuning mixture builder
 - `src/finrag/train_qlora.py`: QLoRA fine-tuning entrypoint
 - `src/finrag/benchmarks.py`: benchmark preparation helpers
@@ -93,8 +93,9 @@ The app asks for:
 - a financial question
 - retrieved chunk count
 - either:
-  - `Colab GPU Qwen endpoint`, or
+  - `LoRA Qwen endpoint`, or
   - `Debug extractive fallback`
+- a SEC User-Agent identifying your app and contact email
 
 Example questions:
 
@@ -114,8 +115,8 @@ Important constraint:
 For each question, the app:
 
 1. resolves the company from the question
-2. fetches the latest relevant SEC filings from EDGAR
-3. fetches SEC `companyfacts` for numeric questions
+2. fetches filing metadata through the official SEC submissions API
+3. fetches SEC `companyfacts` API records for numeric financial-statement questions
 4. chunks filing text
 5. runs dense retrieval
 6. reranks with `BAAI/bge-reranker-v2-m3`
@@ -123,6 +124,39 @@ For each question, the app:
    - the local extractive fallback, or
    - the Colab Qwen endpoint
 8. verifies citations and assigns hallucination risk
+
+## Use The Friend 7B LoRA Adapter
+
+The adapter in `/Users/adi/Downloads/finrag_lora_adapter` was trained against:
+
+```text
+Qwen/Qwen2.5-7B-Instruct
+```
+
+The server now reads `adapter_config.json` and uses that base model automatically when `--model-name` is omitted. Do not force the old 14B default with this adapter.
+
+Create `.env` from `.env.example` and edit the SEC contact email:
+
+```bash
+cp .env.example .env
+```
+
+Run the frontend from the repo root:
+
+```bash
+export PYTHONPATH=src
+streamlit run demo/app.py
+```
+
+Run the LoRA server on a CUDA GPU machine:
+
+```bash
+export PYTHONPATH=src
+export FINRAG_LORA_ADAPTER_PATH="/Users/adi/Downloads/finrag_lora_adapter"
+python -m finrag.qwen_server --adapter-path "$FINRAG_LORA_ADAPTER_PATH" --port 8000
+```
+
+If the server runs on a remote GPU or Colab, expose port 8000 with ngrok and paste that URL into the frontend's `LoRA Qwen endpoint` field.
 
 ## Build The Curated Training Mix
 
@@ -194,8 +228,8 @@ Start the GPU server:
 
 The server launcher now defaults to:
 
-- model: `Qwen/Qwen2.5-14B-Instruct`
-- adapter: `/content/gdrive/MyDrive/finrag-adapters/qwen2_5_14b_financial_qa_lora`
+- model: inferred from `adapter_config.json` unless `MODEL_NAME` is set
+- adapter: `FINRAG_LORA_ADAPTER_PATH` or `/content/drive/MyDrive/Generative AI Project FinRAG/finrag_lora_adapter`
 
 Verify the server:
 
@@ -247,7 +281,7 @@ Compared with the earlier prototype, this repo now:
 - removes reliance on the local FAISS index for the interactive app
 - pulls SEC filings live from EDGAR
 - consults `companyfacts` for numeric questions
-- upgrades the generator default from Qwen 2.5 7B to Qwen 2.5 14B
+- serves the generator through a LoRA endpoint and infers the correct base model from adapter metadata
 - replaces FinQA-only fine-tuning prep with a curated FinQA + ConvFinQA + TAT-QA mixture
 - adds a stronger reranker
 
