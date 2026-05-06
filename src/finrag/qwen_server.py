@@ -113,10 +113,10 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
     user_content = (
         f"Question: {question}\n\n"
         f"Evidence:\n{context}\n\n"
-        "Synthesize a direct answer in your own words — do not copy evidence verbatim. "
-        "Write 2-4 concise sentences or bullets. "
-        "Each sentence must make a substantive claim and end with one bracketed citation. "
-        "Do not output only citation IDs. "
+        "Write 2-4 concise sentences answering the question above. "
+        "Use your own words — do NOT copy sentences from the evidence. "
+        "Do NOT repeat the evidence headers or source labels. "
+        "End each sentence with exactly one bracketed citation like [CHUNK_ID]. "
         f"{citation_rule}\n\nAnswer:"
     )
     messages = [

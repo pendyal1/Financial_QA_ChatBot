@@ -100,13 +100,13 @@ def build_context(
     blocks = []
     for result in results:
         text = evidence_for_question(question, result.text) if question else result.text
+        # Strip any residual HTML tags from chunk text before sending to model
+        text = re.sub(r"<[^>]*>", " ", text)
+        text = re.sub(r"\s{2,}", " ", text).strip()
         text = text[:max_chars_per_chunk]
-        blocks.append(
-            f"Source ID: [{result.chunk_id}]\n"
-            f"Company: {result.company} ({result.ticker})\n"
-            f"Source: {result.source}\n"
-            f"Evidence: {text}"
-        )
+        # Compact format: citation ID first so the model naturally picks it up,
+        # no verbose "Source ID / Company / Source" labels that the model echoes verbatim.
+        blocks.append(f"[{result.chunk_id}] {result.company} {result.ticker}:\n{text}")
     return "\n\n".join(blocks)
 
 
