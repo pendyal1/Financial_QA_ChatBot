@@ -6,6 +6,7 @@ import re
 
 from openai import OpenAI
 
+from finrag.answer_formatting import format_model_answer
 from finrag.config import DEFAULT_OPENAI_MODEL, DEFAULT_SEC_USER_AGENT
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
@@ -238,6 +239,7 @@ def build_response_from_retrieved(
     answer = llm_answer(question, retrieved, model)
     if is_low_content_answer(answer):
         answer = extractive_answer(question, retrieved)
+    answer = format_model_answer(answer, question=question)
     citations = extract_citations(answer)
     verification = verify_answer(answer, retrieved, expected_tickers=expected_tickers)
     return RAGResponse(
