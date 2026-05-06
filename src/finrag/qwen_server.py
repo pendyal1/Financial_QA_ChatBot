@@ -79,10 +79,11 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
     user_content = (
         f"Question: {question}\n\n"
         f"Evidence:\n{context}\n\n"
-        "Write 2-4 concise bullets that directly answer the question. "
-        "Each bullet must contain a substantive claim in words plus one bracketed citation. "
-        "Do not output only citation IDs. "
-        "Do not include citations unless they support the words in the same bullet. "
+        "Answer in 2-4 complete sentences that directly address the question. "
+        "Do not use bullet points, numbered lists, or raw table data. "
+        "Write in flowing prose: each sentence must state a substantive claim in plain English "
+        "and end with one bracketed citation that supports it. "
+        "Do not output citation IDs alone without surrounding words. "
         f"{citation_rule}\n\nAnswer:"
     )
     messages = [
