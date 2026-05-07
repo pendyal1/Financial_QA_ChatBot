@@ -12,9 +12,9 @@ from datasets import Dataset, load_dataset
 from finrag.config import DATA_DIR
 
 
-DEFAULT_MODEL = "Qwen/Qwen2.5-14B-Instruct"
+DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 DEFAULT_TRAIN_FILE = DATA_DIR / "fine_tuning" / "financial_qa_mix_train.jsonl"
-DEFAULT_OUTPUT_DIR = DATA_DIR.parent / "outputs" / "qwen2_5_14b_financial_qa_lora"
+DEFAULT_OUTPUT_DIR = DATA_DIR.parent / "outputs" / "qwen2_5_7b_financial_qa_lora"
 
 
 def print_runtime_versions() -> None:
@@ -239,7 +239,7 @@ def train(args: argparse.Namespace) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="QLoRA fine-tune Qwen 2.5 14B for FinRAG.")
+    parser = argparse.ArgumentParser(description="QLoRA fine-tune Qwen 2.5 7B for FinRAG.")
     parser.add_argument("--model-name", default=DEFAULT_MODEL)
     parser.add_argument("--train-file", type=Path, default=DEFAULT_TRAIN_FILE)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)

@@ -9,14 +9,11 @@ import urllib.request
 from pathlib import Path
 
 
-MODEL_NAME = os.getenv("MODEL_NAME") or os.getenv("HF_BASE_MODEL")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
 PORT = int(os.getenv("PORT", "8000"))
 ADAPTER_PATH = os.getenv(
     "ADAPTER_PATH",
-    os.getenv(
-        "FINRAG_LORA_ADAPTER_PATH",
-        "/content/drive/MyDrive/Generative AI Project FinRAG/finrag_lora_adapter",
-    ),
+    "/content/gdrive/MyDrive/finrag-adapters/qwen2_5_7b_financial_qa_lora",
 )
 LOG_FILE = Path(os.getenv("LOG_FILE", "qwen_server.log"))
 PID_FILE = Path(os.getenv("PID_FILE", "qwen_server.pid"))
@@ -51,11 +48,11 @@ def build_command() -> list[str]:
         sys.executable,
         "-m",
         "finrag.qwen_server",
+        "--model-name",
+        MODEL_NAME,
         "--port",
         str(PORT),
     ]
-    if MODEL_NAME:
-        command.extend(["--model-name", MODEL_NAME])
     if Path(ADAPTER_PATH).is_dir():
         print(f"Using LoRA adapter: {ADAPTER_PATH}")
         command.extend(["--adapter-path", ADAPTER_PATH])

@@ -7,7 +7,7 @@ import re
 from openai import OpenAI
 
 from finrag.answer_formatting import format_model_answer
-from finrag.config import DEFAULT_OPENAI_MODEL, DEFAULT_SEC_USER_AGENT
+from finrag.config import DEFAULT_OPENAI_MODEL
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
 from finrag.query import analyze_query, evidence_for_question
@@ -16,6 +16,7 @@ from finrag.sec_live import retrieve_live_sec
 
 SYSTEM_PROMPT = """You are a financial analyst assistant for SEC filings.
 Answer only from the supplied evidence.
+Write in complete prose sentences — never use bullet points, numbered lists, or raw table data.
 Start with the answer, not a citation list.
 Every factual sentence must include at least one bracketed citation like [AAPL-2024-11-01-0007].
 Do not cite sources that are not in the evidence.
@@ -93,6 +94,13 @@ QUESTION_STOPWORDS = {
 }
 
 
+_CURLY_QUOTE_TABLE = str.maketrans({
+    "‘": "'", "’": "'",
+    "“": '"', "”": '"',
+    "–": "-", "—": "-",
+})
+
+
 def build_context(
     results: list[RetrievalResult],
     question: str | None = None,
@@ -101,13 +109,11 @@ def build_context(
     blocks = []
     for result in results:
         text = evidence_for_question(question, result.text) if question else result.text
+        text = re.sub(r"<[^>]*>", " ", text)
+        text = text.translate(_CURLY_QUOTE_TABLE)
+        text = re.sub(r"\s{2,}", " ", text).strip()
         text = text[:max_chars_per_chunk]
-        blocks.append(
-            f"Source ID: [{result.chunk_id}]\n"
-            f"Company: {result.company} ({result.ticker})\n"
-            f"Source: {result.source}\n"
-            f"Evidence: {text}"
-        )
+        blocks.append(f"[{result.chunk_id}] {result.company} ({result.ticker}):\n{text}")
     return "\n\n".join(blocks)
 
 
@@ -251,13 +257,8 @@ def build_response_from_retrieved(
     )
 
 
-def answer_question(
-    question: str,
-    top_k: int = 5,
-    model: str = DEFAULT_OPENAI_MODEL,
-    user_agent: str = DEFAULT_SEC_USER_AGENT,
-) -> RAGResponse:
-    company, retrieved = retrieve_live_sec(question, top_k=top_k, user_agent=user_agent)
+def answer_question(question: str, top_k: int = 5, model: str = DEFAULT_OPENAI_MODEL) -> RAGResponse:
+    company, retrieved = retrieve_live_sec(question, top_k=top_k)
     return build_response_from_retrieved(
         question=question,
         retrieved=retrieved,

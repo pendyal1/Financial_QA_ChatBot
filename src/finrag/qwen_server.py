@@ -9,10 +9,10 @@ import torch
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from finrag.adapter_config import resolve_base_model
 from finrag.answer import SYSTEM_PROMPT
 
 
+DEFAULT_MODEL = os.getenv("HF_BASE_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 DEFAULT_ADAPTER = os.getenv("FINRAG_LORA_ADAPTER_PATH", "")
 
 
@@ -79,10 +79,11 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
     user_content = (
         f"Question: {question}\n\n"
         f"Evidence:\n{context}\n\n"
-        "Write 2-4 concise bullets that directly answer the question. "
-        "Each bullet must contain a substantive claim in words plus one bracketed citation. "
-        "Do not output only citation IDs. "
-        "Do not include citations unless they support the words in the same bullet. "
+        "Answer in 2-4 complete sentences that directly address the question. "
+        "Do not use bullet points, numbered lists, or raw table data. "
+        "Write in flowing prose: each sentence must state a substantive claim in plain English "
+        "and end with one bracketed citation that supports it. "
+        "Do not output citation IDs alone without surrounding words. "
         f"{citation_rule}\n\nAnswer:"
     )
     messages = [
@@ -97,12 +98,13 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
 def clean_generation(text: str) -> str:
     text = text.strip()
     text = re.sub(r"^(assistant|answer)\s*:\s*", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"<[^>]{1,80}>", " ", text)
+    text = re.sub(r"\s{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    return text
+    return text.strip()
 
 
-def create_app(model_name: str | None, adapter_path: str | None, trust_remote_code: bool) -> FastAPI:
-    model_name = resolve_base_model(adapter_path, model_name)
+def create_app(model_name: str, adapter_path: str | None, trust_remote_code: bool) -> FastAPI:
     tokenizer, model = load_model(model_name, adapter_path, trust_remote_code)
     app = FastAPI(title="FinRAG Qwen GPU Server")
 
@@ -124,6 +126,7 @@ def create_app(model_name: str | None, adapter_path: str | None, trust_remote_co
                 **inputs,
                 max_new_tokens=request.max_new_tokens,
                 do_sample=False,
+                repetition_penalty=1.1,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )
@@ -135,12 +138,8 @@ def create_app(model_name: str | None, adapter_path: str | None, trust_remote_co
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Serve a Qwen LoRA adapter for FinRAG generation on a GPU.")
-    parser.add_argument(
-        "--model-name",
-        default=None,
-        help="Base model. If omitted, infer from adapter_config.json, then HF_BASE_MODEL.",
-    )
+    parser = argparse.ArgumentParser(description="Serve Qwen 2.5 7B for FinRAG generation on a GPU.")
+    parser.add_argument("--model-name", default=DEFAULT_MODEL)
     parser.add_argument("--adapter-path", default=DEFAULT_ADAPTER)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8000)
