@@ -1,0 +1,438 @@
+[
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00005",
+    "question_type": "domain-relevant",
+    "question": "Does Corning have positive working capital based on FY2022 data? If working capital is not a useful or relevant metric for this company, then please state that and explain why.",
+    "top_chunk_id": "ON-2026-05-04-0037",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3056
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_06655",
+    "question_type": "metrics-generated",
+    "question": "What is Amazon's FY2017 days payable outstanding (DPO)? DPO is defined as: 365 * (average accounts payable between FY2016 and FY2017) / (FY2017 COGS + change in inventory between FY2016 and FY2017). Round your answer to two decimal places. Address the question by using the line items and information shown within the balance sheet and the P&L statement.",
+    "top_chunk_id": "S-2026-03-19-0154",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3018
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00080",
+    "question_type": "domain-relevant",
+    "question": "Does Paypal have positive working capital based on FY2022 data? If working capital is not a useful or relevant metric for this company, then please state that and explain why.",
+    "top_chunk_id": "ON-2026-05-04-0037",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3974
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01244",
+    "question_type": "domain-relevant",
+    "question": "Has CVS Health paid dividends to common shareholders in Q2 of FY2022?",
+    "top_chunk_id": "HAS-2026-02-25-0109",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.5
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00790",
+    "question_type": "domain-relevant",
+    "question": "Is CVS Health a capital-intensive business based on FY2022 data?",
+    "top_chunk_id": "CVS-2026-05-06-0010",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.283
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00222",
+    "question_type": "domain-relevant",
+    "question": "Does AMD have a reasonably healthy liquidity profile based on its quick ratio for FY22? If the quick ratio is not relevant to measure liquidity, please state that and explain why.",
+    "top_chunk_id": "AMD-2026-05-06-0024",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3379
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00464",
+    "question_type": "novel-generated",
+    "question": "Is Boeing's business subject to cyclicality?",
+    "top_chunk_id": "S-2026-03-19-0044",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.619
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00606",
+    "question_type": "novel-generated",
+    "question": "Did Ulta Beauty's wages expense as a percent of net sales increase or decrease in FY2023?",
+    "top_chunk_id": "ULTA-2026-03-26-0071",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.534
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_09724",
+    "question_type": "metrics-generated",
+    "question": "What is Coca Cola's FY2021 COGS % margin? Calculate what was asked by utilizing the line items clearly shown in the income statement.",
+    "top_chunk_id": "COLA-2026-03-19-0027",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3622
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_03471",
+    "question_type": "metrics-generated",
+    "question": "By drawing conclusions from the information stated only in the statement of financial position, what is General Mills's FY2020 working capital ratio? Define working capital ratio as total current assets divided by total current liabilities. Round your answer to two decimal places.",
+    "top_chunk_id": "BY-2026-02-27-0033",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.1679
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_04700",
+    "question_type": "metrics-generated",
+    "question": "What is the FY2016 COGS for Microsoft? Please state answer in USD millions. Provide a response to the question by primarily using the statement of income.",
+    "top_chunk_id": "FOR-2025-11-19-0064",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3256
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_03856",
+    "question_type": "metrics-generated",
+    "question": "What is the FY2017 operating cash flow ratio for Adobe? Operating cash flow ratio is defined as: cash from operations / total current liabilities. Round your answer to two decimal places. Please utilize information provided primarily within the balance sheet and the cash flow statement.",
+    "top_chunk_id": "CASH-2025-11-25-0142",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.2875
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00563",
+    "question_type": "novel-generated",
+    "question": "From FY21 to FY22, excluding Embedded, in which AMD reporting segment did sales proportionally increase the most?",
+    "top_chunk_id": "AMD-2026-02-04-0089",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.4318
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_07966",
+    "question_type": "metrics-generated",
+    "question": "What is the FY2017 - FY2019 3 year average of capex as a % of revenue for Activision Blizzard? Answer in units of percents and round to one decimal place. Calculate (or extract) the answer from the statement of income and the cash flow statement.",
+    "error": "No relevant SEC filings found for Amer Sports, Inc.."
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_08135",
+    "question_type": "metrics-generated",
+    "question": "What is Amazon's year-over-year change in revenue from FY2016 to FY2017 (in units of percents and round to one decimal place)? Calculate what was asked by utilizing the line items clearly shown in the statement of income.",
+    "top_chunk_id": "S-2025-12-04-0091",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.2707
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_04660",
+    "question_type": "metrics-generated",
+    "question": "Considering the data in the balance sheet, what is Block's (formerly known as Square) FY2016 working capital ratio? Define working capital ratio as total current assets divided by total current liabilities. Round your answer to two decimal places.",
+    "top_chunk_id": "S-2025-12-04-0007",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.1074
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_03849",
+    "question_type": "metrics-generated",
+    "question": "What is the FY2018 - FY2020 3 year average of capex as a % of revenue for MGM Resorts? Answer in units of percents and round to one decimal place. Please utilize information provided primarily within the statement of cash flows and the statement of income.",
+    "error": "No relevant SEC filings found for Amer Sports, Inc.."
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_06272",
+    "question_type": "metrics-generated",
+    "question": "What is Coca Cola's FY2022 dividend payout ratio (using total cash dividends paid and net income attributable to shareholders)? Round answer to two decimal places. Answer the question asked by assuming you only have access to information clearly displayed in the cash flow statement and the income statement.",
+    "top_chunk_id": "COLA-2026-03-19-0027",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.2536
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01902",
+    "question_type": "novel-generated",
+    "question": "Which Best Buy product category performed the best (by top line) in the domestic (USA) Market during Q2 of FY2024?",
+    "top_chunk_id": "BY-2026-02-27-0178",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.1136
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_02416",
+    "question_type": "novel-generated",
+    "question": "What are three main companies acquired by Pfizer mentioned in this 10K report?",
+    "top_chunk_id": "ARE-2026-04-27-0072",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3259
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01930",
+    "question_type": "novel-generated",
+    "question": "How much was the Real change in Sales for AMCOR in FY 2023 vs FY 2022, if we exclude the impact of FX movement, passthrough costs and one-off items?",
+    "top_chunk_id": "REAL-2026-02-26-0080",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.4528
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00882",
+    "question_type": "novel-generated",
+    "question": "As of May 26, 2023, what is the total amount Pepsico may borrow under its unsecured revolving credit agreements?",
+    "error": "No relevant SEC filings found for Amer Sports, Inc.."
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00684",
+    "question_type": "domain-relevant",
+    "question": "Does AMCOR have an improving gross margin profile as of FY2023? If gross margin is not a useful metric for a company like this, then state that and explain why.",
+    "top_chunk_id": "AN-2026-02-12-0148",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.5676
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01474",
+    "question_type": "novel-generated",
+    "question": "As of FY2023Q1, why did Pepsico raise full year guidance for FY2023?",
+    "error": "No relevant SEC filings found for Amer Sports, Inc.."
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00702",
+    "question_type": "novel-generated",
+    "question": "Were there any potential events that are not in Pfizer's standard business operations that substantially increased net income in 2019?",
+    "top_chunk_id": "ANY-2026-03-27-0067",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.25
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00215",
+    "question_type": "domain-relevant",
+    "question": "Is Verizon a capital intensive business based on FY 2022 data?",
+    "top_chunk_id": "A-2025-12-22-0148",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.322
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01912",
+    "question_type": "novel-generated",
+    "question": "Which region had the worst topline performance for MGM during FY2022?",
+    "top_chunk_id": "FOR-2025-11-19-0001",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3939
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_02024",
+    "question_type": "novel-generated",
+    "question": "As of FY 2021, how much did Verizon expect to pay for its retirees in 2024?",
+    "error": "No relevant SEC filings found for Amer Sports, Inc.."
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_05718",
+    "question_type": "metrics-generated",
+    "question": "How much (in USD billions) did American Water Works pay out in cash dividends for FY2020? Compute or extract the answer by primarily using the details outlined in the statement of cash flows.",
+    "top_chunk_id": "PAY-2026-02-24-0111",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.4
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_03069",
+    "question_type": "metrics-generated",
+    "question": "Answer the following question as if you are an equity research analyst and have lost internet connection so you do not have access to financial metric providers. According to the details clearly outlined within the P&L statement and the statement of cash flows, what is the FY2015 depreciation and amortization (D&A from cash flow statement) % margin for AMD?",
+    "error": "No relevant SEC filings found for Amer Sports, Inc.."
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01935",
+    "question_type": "novel-generated",
+    "question": "What was the key agenda of the AMCOR's 8k filing dated 1st July 2022?",
+    "top_chunk_id": "KEY-2026-04-16-0001",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.5288
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01319",
+    "question_type": "domain-relevant",
+    "question": "What is the quantity of restructuring costs directly outlined in AES Corporation's income statements for FY2022? If restructuring costs are not explicitly outlined then state 0.",
+    "top_chunk_id": "AES-2026-05-05-0063",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.5473
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00494",
+    "question_type": "novel-generated",
+    "question": "What production rate changes is Boeing forecasting for FY2023?",
+    "top_chunk_id": "FOR-2025-11-19-0042",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3088
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_07507",
+    "question_type": "metrics-generated",
+    "question": "What is Adobe's year-over-year change in unadjusted operating income from FY2015 to FY2016 (in units of percents and round to one decimal place)? Give a solution to the question by using the income statement.",
+    "top_chunk_id": "S-2026-03-19-0122",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.2288
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01351",
+    "question_type": "domain-relevant",
+    "question": "How much has the effective tax rate of American Express changed between FY2021 and FY2022?",
+    "top_chunk_id": "HAS-2026-02-25-0070",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.2652
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00566",
+    "question_type": "domain-relevant",
+    "question": "Has Verizon increased its debt on balance sheet between 2022 and the 2021 fiscal period?",
+    "top_chunk_id": "HAS-2026-02-25-0079",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3426
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01077",
+    "question_type": "domain-relevant",
+    "question": "What are major acquisitions that Best Buy has done in FY2023, FY2022 and FY2021?",
+    "top_chunk_id": "ARE-2026-01-26-0279",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.4245
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01936",
+    "question_type": "novel-generated",
+    "question": "What is the nature & purpose of AMCOR's restructuring liability as oF Q2 of FY2023 close?",
+    "top_chunk_id": "S-2026-03-19-0067",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.525
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_01865",
+    "question_type": "novel-generated",
+    "question": "If we exclude the impact of M&A, which segment has dragged down 3M's overall growth in 2022?",
+    "top_chunk_id": "M-2025-12-10-0026",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.4848
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00995",
+    "question_type": "domain-relevant",
+    "question": "What are the major products and services that AMD sells as of FY22?",
+    "top_chunk_id": "ARE-2026-01-26-0237",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3175
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00859",
+    "question_type": "novel-generated",
+    "question": "Among all of the derivative instruments that Verizon used to manage the exposure to fluctuations of foreign currencies exchange rates or interest rates, which one had the highest notional value in FY 2021?",
+    "top_chunk_id": "ALL-2026-04-29-0045",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.5753
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00956",
+    "question_type": "domain-relevant",
+    "question": "Are JnJ's FY2022 financials that of a high growth company?",
+    "top_chunk_id": "ARE-2026-01-26-0205",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.5156
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00669",
+    "question_type": "domain-relevant",
+    "question": "What drove gross margin change as of FY2022 for JnJ? If gross margin is not a useful metric for a company like this, then please state that and explain why.",
+    "error": "No relevant SEC filings found for Amer Sports, Inc.."
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00540",
+    "question_type": "domain-relevant",
+    "question": "Roughly how many times has AES Corporation sold its inventory in FY2022? Calculate inventory turnover ratio for the FY2022; if conventional inventory management is not meaningful for the company then state that and explain why.",
+    "top_chunk_id": "HAS-2026-02-25-0001",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.4444
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_04735",
+    "question_type": "metrics-generated",
+    "question": "You are an investment banker and your only resource(s) to answer the following question is (are): the statement of financial position and the cash flow statement. Here's the question: what is the FY2015 operating cash flow ratio for Adobe? Operating cash flow ratio is defined as: cash from operations / total current liabilities. Round your answer to two decimal places.",
+    "top_chunk_id": "YOU-2026-02-25-0095",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.1845
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_04103",
+    "question_type": "metrics-generated",
+    "question": "What is the FY2019 cash conversion cycle (CCC) for General Mills? CCC is defined as: DIO + DSO - DPO. DIO is defined as: 365 * (average inventory between FY2018 and FY2019) / (FY2019 COGS). DSO is defined as: 365 * (average accounts receivable between FY2018 and FY2019) / (FY2019 Revenue). DPO is defined as: 365 * (average accounts payable between FY2018 and FY2019) / (FY2019 COGS + change in inventory between FY2018 and FY2019). Round your answer to two decimal places. Address the question by using the line items and information shown within the income statement and the balance sheet.",
+    "top_chunk_id": "CASH-2025-11-25-0001",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.0139
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00283",
+    "question_type": "novel-generated",
+    "question": "How much does Pfizer expect to pay to spin off Upjohn in the future in USD million?",
+    "top_chunk_id": "PAY-2026-02-24-0139",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.4865
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00521",
+    "question_type": "domain-relevant",
+    "question": "What are major acquisitions that Ulta Beauty has done in FY2023 and FY2022?",
+    "top_chunk_id": "ARE-2026-01-26-0279",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.3125
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_05915",
+    "question_type": "metrics-generated",
+    "question": "What is the FY2018 fixed asset turnover ratio for CVS Health? Fixed asset turnover ratio is defined as: FY2018 revenue / (average PP&E between FY2017 and FY2018). Round your answer to two decimal places. Calculate what was asked by utilizing the line items clearly shown in the P&L statement and the balance sheet.",
+    "top_chunk_id": "FOR-2025-11-19-0002",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.0207
+  },
+  {
+    "system": "retrieval_reranker",
+    "benchmark_id": "financebench_id_00407",
+    "question_type": "novel-generated",
+    "question": "Which type of debt received the largest investment among the short term investments for MGM in H1 FY2023?",
+    "top_chunk_id": "FOR-2026-04-23-0021",
+    "gold_in_top1": false,
+    "gold_token_overlap": 0.4314
+  }
+]
