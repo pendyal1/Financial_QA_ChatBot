@@ -94,6 +94,13 @@ QUESTION_STOPWORDS = {
 }
 
 
+_CURLY_QUOTE_TABLE = str.maketrans({
+    "‘": "'", "’": "'",
+    "“": '"', "”": '"',
+    "–": "-", "—": "-",
+})
+
+
 def build_context(
     results: list[RetrievalResult],
     question: str | None = None,
@@ -102,13 +109,11 @@ def build_context(
     blocks = []
     for result in results:
         text = evidence_for_question(question, result.text) if question else result.text
+        text = re.sub(r"<[^>]*>", " ", text)
+        text = text.translate(_CURLY_QUOTE_TABLE)
+        text = re.sub(r"\s{2,}", " ", text).strip()
         text = text[:max_chars_per_chunk]
-        blocks.append(
-            f"Source ID: [{result.chunk_id}]\n"
-            f"Company: {result.company} ({result.ticker})\n"
-            f"Source: {result.source}\n"
-            f"Evidence: {text}"
-        )
+        blocks.append(f"[{result.chunk_id}] {result.company} ({result.ticker}):\n{text}")
     return "\n\n".join(blocks)
 
 

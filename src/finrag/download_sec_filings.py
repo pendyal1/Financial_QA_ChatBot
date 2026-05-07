@@ -65,12 +65,21 @@ def latest_filing(submissions: dict[str, Any], form: str) -> dict[str, str]:
     raise ValueError(f"No {form} filing found in recent submissions.")
 
 
+_CURLY_QUOTES = str.maketrans({
+    "‘": "'", "’": "'",  # left/right single quotation marks
+    "“": '"', "”": '"',  # left/right double quotation marks
+    "′": "'", "″": '"',  # prime / double prime
+    "–": "-", "—": "-",  # en-dash, em-dash
+})
+
+
 def html_to_text(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
 
     text = soup.get_text("\n")
+    text = text.translate(_CURLY_QUOTES)
     text = re.sub(r"\r", "\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)

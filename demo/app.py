@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -55,7 +56,9 @@ if st.button("Ask", type="primary") and question.strip():
             st.stop()
 
     st.subheader("Answer")
-    st.markdown(response.answer)
+    answer_text = re.sub(r"<[^>]{1,80}>", " ", response.answer)
+    answer_text = re.sub(r"\s{2,}", " ", answer_text).strip()
+    st.markdown(answer_text)
 
     col1, col2 = st.columns(2)
     col1.metric("Confidence Score", f"{response.verification.confidence_score:.2f}")
@@ -70,6 +73,10 @@ if st.button("Ask", type="primary") and question.strip():
         if intent.tickers and result.ticker not in intent.tickers:
             st.error(f"Unexpected cross-company retrieval: {result.chunk_id}")
         with st.expander(f"{result.chunk_id} | {result.source} | score={result.score:.3f}"):
-            st.write(evidence_for_question(question, result.text))
+            chunk_text = evidence_for_question(question, result.text)
+            chunk_text = re.sub(r"<[^>]*>", " ", chunk_text)
+            chunk_text = re.sub(r"`", "'", chunk_text)
+            chunk_text = re.sub(r"\s{2,}", " ", chunk_text).strip()
+            st.write(chunk_text)
             if result.source_url:
                 st.link_button("Open SEC Filing", result.source_url)

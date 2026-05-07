@@ -98,8 +98,10 @@ def build_prompt(tokenizer, question: str, context: str, allowed_citations: list
 def clean_generation(text: str) -> str:
     text = text.strip()
     text = re.sub(r"^(assistant|answer)\s*:\s*", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"<[^>]{1,80}>", " ", text)
+    text = re.sub(r"\s{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    return text
+    return text.strip()
 
 
 def create_app(model_name: str, adapter_path: str | None, trust_remote_code: bool) -> FastAPI:
@@ -124,6 +126,7 @@ def create_app(model_name: str, adapter_path: str | None, trust_remote_code: boo
                 **inputs,
                 max_new_tokens=request.max_new_tokens,
                 do_sample=False,
+                repetition_penalty=1.1,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )
