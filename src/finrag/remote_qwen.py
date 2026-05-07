@@ -6,6 +6,7 @@ from typing import Any
 import requests
 
 from finrag.answer import build_context, extractive_answer, is_low_content_answer
+from finrag.answer_formatting import format_model_answer
 from finrag.hallucination_detection import extract_citations, verify_answer
 from finrag.models import RAGResponse, RetrievalResult
 from finrag.sec_live import retrieve_live_sec
@@ -71,6 +72,7 @@ def answer_with_remote_qwen_retrieved(
     )
     if is_low_content_answer(answer):
         answer = extractive_answer(question, retrieved)
+    answer = format_model_answer(answer, question=question)
     citations = extract_citations(answer)
     verification = verify_answer(answer, retrieved, expected_tickers=expected_tickers)
     return RAGResponse(

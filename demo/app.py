@@ -55,7 +55,7 @@ if st.button("Ask", type="primary") and question.strip():
             st.stop()
 
     st.subheader("Answer")
-    st.write(response.answer)
+    st.markdown(response.answer)
 
     col1, col2 = st.columns(2)
     col1.metric("Confidence Score", f"{response.verification.confidence_score:.2f}")
