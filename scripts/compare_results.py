@@ -146,6 +146,51 @@ def main() -> None:
 
     print()
 
+    # ---- Save CSV summary ----
+    import csv
+    csv_path = OUTPUT_DIR / "ablation_summary.csv"
+    rows_csv = []
+    for key, name in GENERATION_SYSTEMS.items():
+        s_all = gen_data_overall.get(key, {})
+        for qtype in [None] + QTYPES:
+            s = gen_stats(load(key), qtype) if qtype else s_all
+            if not s:
+                continue
+            rows_csv.append({
+                "system": name,
+                "question_type": qtype or "overall",
+                "n": s["n"],
+                "token_f1": round(s["f1"], 4),
+                "rouge_l": round(s["rouge_l"], 4),
+                "numerical_em": round(s["num_em"], 4) if s.get("num_em") is not None else "",
+                "high_halluc_pct": round(s["high_pct"], 2),
+                "confidence": round(s["conf"], 4),
+            })
+    for key, name in RETRIEVAL_SYSTEMS.items():
+        s = ret_stats(load(key))
+        if s:
+            rows_csv.append({
+                "system": name,
+                "question_type": "retrieval",
+                "n": s["n"],
+                "token_f1": "",
+                "rouge_l": "",
+                "numerical_em": "",
+                "high_halluc_pct": "",
+                "confidence": "",
+                "gold_token_overlap": round(s["overlap"], 4),
+                "gold_in_top1_pct": round(s["top1_pct"], 2),
+            })
+    if rows_csv:
+        fieldnames = ["system", "question_type", "n", "token_f1", "rouge_l",
+                      "numerical_em", "high_halluc_pct", "confidence",
+                      "gold_token_overlap", "gold_in_top1_pct"]
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows_csv)
+        print(f"Summary table saved to: {csv_path}")
+
 
 if __name__ == "__main__":
     main()
